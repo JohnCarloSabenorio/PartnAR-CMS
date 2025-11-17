@@ -18,8 +18,26 @@ This project was designed to enhance professional networking and organizational 
 - **CMS Integration**: Update employee profiles dynamically without physical card changes.
 - **Cross-Platform Compatibility**: Works with Unity and Vuforia for mobile deployment.
 - **Scalable Database**: Employee data is stored and retrieved from Supabase.
-
 ---
+
+## 📸 Screenshots
+
+> **Note:** The screenshots below contain *sample data* only.  
+> Actual data in the live system may differ.
+
+![Screenshot 1](screenshot1.png)
+![Screenshot 2](screenshot2.png)
+![Screenshot 3](screenshot3.png)
+![Screenshot 4](screenshot4.png)
+![Screenshot 5](screenshot5.png)
+![Screenshot 6](screenshot6.png)
+![Screenshot 7](screenshot7.png)
+![Screenshot 8](screenshot8.png)
+![Screenshot 9](screenshot9.png)
+![Screenshot 10](screenshot10.png)
+![Screenshot 11](screenshot11.png)
+![Screenshot 12](screenshot12.png)
+
 
 ## 🛠 Technologies Used
 - **Backend**: Node.js, Express.js  
@@ -27,7 +45,6 @@ This project was designed to enhance professional networking and organizational 
 - **Database & Services**: Supabase  
 - **Testing**: Postman  
 - **AR Development**: Unity (C#), Vuforia  
-
 ---
 
 ## 🚀 Installation & Setup
