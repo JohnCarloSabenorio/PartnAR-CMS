@@ -25,7 +25,7 @@ This project was designed to enhance professional networking and organizational 
 > **Note:** The screenshots below contain *sample data* only.  
 > Actual data in the live system may differ.
 
-![Screenshot 1](screenshot1.png)
+![Screenshot 1](screenshots/screenshot1.png)
 ![Screenshot 2](screenshot2.png)
 ![Screenshot 3](screenshot3.png)
 ![Screenshot 4](screenshot4.png)
