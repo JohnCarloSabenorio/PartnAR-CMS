@@ -2,10 +2,9 @@
 	"folders": [
 		{
 			"path": ".."
-		},
-		{
-			"path": "../../after-section-06"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"compile-hero.disable-compile-files-on-did-save-code": false
+	}
 }

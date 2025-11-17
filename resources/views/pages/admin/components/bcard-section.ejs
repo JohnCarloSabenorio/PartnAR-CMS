@@ -2,12 +2,24 @@
   <div class="bcard-section-content">
     <div class="bcard-section-canvas">
       <h2 class="section-title">Business Card Template</h2>
-      <input id="theText" type="text" />
-      <button id="submit-new-text" class="draw-text-btn">
+      <input
+        id="theText"
+        type="text"
+        placeholder="Enter text here"
+        style="display: none"
+      />
+      <button id="submit-new-text" class="draw-text-btn" style="display: none">
         Draw text on canvas
       </button>
-      <button class="clear-btn" id="clear-btn">Clear</button>
-      <button class="highlight-name-btn" id="highlight-name-btn">Center Name</button>
+      <button class="clear-btn" id="clear-btn" style="display: none">
+        Clear
+      </button>
+      <button class="highlight-name-btn" id="highlight-name-btn">
+        Center Name
+      </button>
+      <button class="highlight-empnumber-btn" id="highlight-empnumber-btn">
+        Center Employee Number
+      </button>
       <!-- <button
         type="button"
         id="toggle-email-btn"
@@ -35,13 +47,13 @@
       <div>
         <canvas id="canvas" width="800" height="450"></canvas>
         <div class="bcard-bg-btn">
-          <input type="file" accept="image/*" id="bcard-bg" />
+          <input type="file" accept=".jpg, .jpeg, .png" id="bcard-bg" />
           <label class="bcard-bg-label" for="bcard-bg">Upload Background</label>
           <button id="save-bg-btn">Save Background</button>
           <button type="button" id="generate-bcard-btn">
             Generate & Replace
           </button>
-          <button type="button" id="download-bcard">
+          <button type="button" id="download-bcard" style="display: none">
             Download Business Card
           </button>
         </div>
@@ -52,21 +64,20 @@
       <label for="text-content">Text:</label>
       <input type="text" id="text-content" name="text-content" disabled />
       <label for="text-font">Font Family:</label>
-      <input list="fonts" id="text-font" name="text-font" disabled />
-      <datalist id="fonts">
-        <option value="Arial"></option>
-        <option value="Verdana"></option>
-        <option value="Times New Roman"></option>
-        <option value="Georgia"></option>
-        <option value="Courier New"></option>
-        <option value="Tahoma"></option>
-        <option value="Trebuchet MS"></option>
-        <option value="Impact"></option>
-        <option value="Comic Sans MS"></option>
-        <option value="Lucida Console"></option>
-        <option value="Garamond"></option>
-        <option value="Palatino Linotype"></option>
-      </datalist>
+      <select id="text-font" name="text-font" disabled>
+        <option value="Arial">Arial</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Times New Roman">Times New Roman</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Courier New">Courier New</option>
+        <option value="Tahoma">Tahoma</option>
+        <option value="Trebuchet MS">Trebuchet MS</option>
+        <option value="Impact">Impact</option>
+        <option value="Comic Sans MS">Comic Sans MS</option>
+        <option value="Lucida Console">Lucida Console</option>
+        <option value="Garamond">Garamond</option>
+        <option value="Palatino Linotype">Palatino Linotype</option>
+      </select>
 
       <label for="scaleFactor" style="display: none">Scale Factor:</label>
       <input
@@ -101,6 +112,24 @@
         disabled
       /><br />
 
+      <label for="textAlignment">Text Alignment:</label>
+      <select id="textAlignment">
+        <option value="left">Left</option>
+        <option value="center">Center</option>
+        <option value="right">Right</option>
+        <option value="start">Start</option>
+        <option value="end">End</option>
+      </select>
+      <!-- <label for="textBaseline">Text Baseline:</label>
+      <select id="textBaseline">
+        <option value="top">Top</option>
+        <option value="hanging">Hanging</option>
+        <option value="middle">Middle</option>
+        <option value="alphabetic">Alphabetic</option>
+        <option value="ideographic">Ideographic</option>
+        <option value="bottom">Bottom</option>
+      </select> -->
+
       <label for="color">Color:</label>
       <input
         type="color"
@@ -113,7 +142,7 @@
       <div id="contextMenu" class="context-menu">
         <button id="delete-text-btn">Delete</button>
       </div>
-      <button type="button" id="apply-btn">Apply</button>
+      <button type="button" id="apply-btn" style="display: none">Apply</button>
     </div>
   </div>
 
@@ -124,3 +153,34 @@
 
   <!--  -->
 </section>
+
+<!-- Tutorial Button -->
+<button class="tutorial-start-btn" id="startTutorial">
+  <i class="bi bi-question-lg"></i>
+</button>
+
+<!-- Tutorial Overlay -->
+<div class="tutorial-overlay" id="tutorialOverlay"></div>
+
+<!-- Tutorial Spotlight (will be positioned dynamically) -->
+<div class="tutorial-spotlight" id="tutorialSpotlight"></div>
+
+<!-- Tutorial Tooltip (will be positioned dynamically) -->
+<div class="tutorial-tooltip" id="tutorialTooltip" style="display: none">
+  <div class="tutorial-tooltip-header">
+    <h3 class="tutorial-tooltip-title">Title</h3>
+    <button class="tutorial-btn-skip" id="closeTutorial">
+      <i class="bi bi-x"></i>
+    </button>
+  </div>
+  <div class="tutorial-tooltip-content">Content goes here</div>
+  <div class="tutorial-tooltip-footer">
+    <div class="tutorial-tooltip-progress">Step 1 of 7</div>
+    <div class="tutorial-tooltip-buttons">
+      <button class="tutorial-btn tutorial-btn-prev" id="prevStep">
+        Previous
+      </button>
+      <button class="tutorial-btn tutorial-btn-next" id="nextStep">Next</button>
+    </div>
+  </div>
+</div>

@@ -1,6 +1,5 @@
 const path = require("path");
 const supabase = require("../utils/supabaseClient");
-const Employee = require("../models/Department");
 const Department = require("../models/Department");
 
 // Fetch all departments
@@ -31,16 +30,43 @@ exports.updateDepartment = async (req, res) => {
       return res.status(404).json({ error: "Department not found" });
     }
 
+    const oldDeptName = department.department_name;
+
     department.department_name = department_name;
 
     const updatedDepartment = await department.save();
+
+    // LOG ACTION
+    const { data: newLog, error: logError } = await supabase
+      .from("log")
+      .insert({
+        action: `UPDATE_LPU_DEPARTMENT`,
+        action_details: `Department Updated: ${oldDeptName} -> ${department.department_name}`,
+        actor: req.session.admin.email,
+        is_admin: true,
+        status: "success",
+        employee_number: req.session.admin.employee_number,
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.log("Error in adding new log:", logError);
+      return res.status(400).json({ message: "Error adding log" });
+    }
+
+    console.log("New log added:", newLog);
 
     console.log(JSON.stringify(updatedDepartment));
 
     res.status(200).json(updatedDepartment);
   } catch (error) {
     console.error("Error updating department:", error);
-    res.status(500).json({ error: "Failed to update department" });
+    if (error.code === "23505") {
+      return res.status(500).json({ error: "Department already exists" });
+    } else {
+      res.status(500).json({ error: "Failed to update department" });
+    }
   }
 };
 
@@ -54,10 +80,34 @@ exports.createDepartment = async (req, res) => {
 
     console.log(JSON.stringify(createdDepartment));
 
+    // LOG ACTION
+    const { data: newLog, error: logError } = await supabase
+      .from("log")
+      .insert({
+        action: `CREATE_LPU_DEPARTMENT`,
+        actor: req.session.admin.email,
+        is_admin: true,
+        status: "success",
+        employee_number: req.session.admin.employee_number,
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.log("Error in adding new log:", logError);
+      return res.status(400).json({ message: "Error adding log" });
+    }
+
+    console.log("New log added:", newLog);
+
     res.status(201).json(createdDepartment);
   } catch (error) {
     console.error("Error creating department:", error);
-    res.status(500).json({ error: "Failed to create department" });
+    if (error.code === "23505") {
+      return res.status(500).json({ error: "Department already exists" });
+    } else {
+      res.status(500).json({ error: "Failed to create department" });
+    }
   }
 };
 
@@ -73,6 +123,26 @@ exports.deleteDepartment = async (req, res) => {
     }
 
     await department.delete();
+
+    // LOG ACTION
+    const { data: newLog, error: logError } = await supabase
+      .from("log")
+      .insert({
+        action: `DELETE_LPU_DEPARTMENT`,
+        actor: req.session.admin.email,
+        is_admin: true,
+        status: "success",
+        employee_number: req.session.admin.employee_number,
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.log("Error in adding new log:", logError);
+      return res.status(400).json({ message: "Error adding log" });
+    }
+
+    console.log("New log added:", newLog);
 
     res.status(200).json(department);
   } catch (error) {

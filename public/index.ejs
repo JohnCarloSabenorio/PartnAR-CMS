@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ARCMS</title>
 
-    <link rel="icon" href="/images/temporary.jpg" />
+    <link rel="icon" href="/images/lpu_logo_icon.png" />
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -29,6 +29,65 @@
     />
   </head>
   <body>
+    <div class="change-newpass-container">
+      <div class="change-newpass-modal">
+        <div style="display: flex; justify-content: space-between">
+          <h1>Change your password</h1>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            height="40px"
+            viewBox="0 -960 960 960"
+            width="40px"
+            fill="#00000"
+            id="require-logout-btn"
+          >
+            <path
+              d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"
+            />
+          </svg>
+        </div>
+        <p>
+          Your account has been created with a temporary password by the
+          administrator. For your security, please create a new password to
+          continue.
+        </p>
+        <div id="register-errors" class="register-errors alert alert-danger">
+          <div class="error-header">
+            <div class="error-header-left">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Registration Failed!
+            </div>
+            <button
+              id="close-changepass-btn"
+              type="button"
+              class="btn-close btn-close-black btn-sm"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="error-body">
+            <ul id="register-errors-list" class="register-errors-list">
+              <!-- Error items will be inserted here dynamically -->
+            </ul>
+          </div>
+        </div>
+        <div class="change-newpass-content">
+          <form id="change-newpass-form" class="change-newpass-form">
+            <label for="current-password">Current Password:</label>
+            <input
+              type="password"
+              id="current-password"
+              name="current-password"
+            />
+            <label for="current-password">New Password:</label>
+            <input type="password" id="new-password" />
+            <label for="current-password">Confirm New Password:</label>
+            <input type="password" id="confirm-new-password" />
+
+            <button id="submit-changepass-btn">Submit</button>
+          </form>
+        </div>
+      </div>
+    </div>
     <div class="container-fluid">
       <div class="row">
         <!-- Sidebar -->
@@ -78,6 +137,122 @@
       const actionText = document.getElementById("action-text");
       const confirmYesBtn = document.getElementById("confirm-yes-btn");
       const confirmNoBtn = document.getElementById("confirm-no-btn");
+      const requireLogoutBtn = document.getElementById("require-logout-btn");
+      const registerErrors = document.getElementById("register-errors");
+      const submitChangepassBtn = document.getElementById(
+        "submit-changepass-btn"
+      );
+      const changeNewPassOverlay = document.querySelector(
+        ".change-newpass-container"
+      );
+      const registerErrorsList = document.getElementById(
+        "register-errors-list"
+      );
+      const closeChangepassBtn = document.getElementById(
+        "close-changepass-btn"
+      );
+      const requireChangepassForm = document.getElementById(
+        "change-newpass-form"
+      );
+      employeeUsesTemp();
+
+      closeChangepassBtn.addEventListener("click", (e) => {
+        registerErrors.style.display = "none";
+      });
+
+      requireChangepassForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        registerErrorsList.innerHTML = "";
+        submitChangepassBtn.textContent = "Changing Password...";
+        const form = e.target;
+
+        // Get the inputs
+        const data = {
+          currentPassword: form["current-password"].value,
+          newPassword: form["new-password"].value,
+          passwordConfirm: form["confirm-new-password"].value,
+        };
+
+        // Send request
+        try {
+          const response = await fetch("/arcms/api/v1/auth/change-password", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(data),
+          });
+
+          // Convert response to json
+          const responseData = await response.json();
+
+          // If failed, show the errors
+          if (!response.ok) {
+            registerErrors.style.display = "block";
+
+            responseData.errors.forEach((error) => {
+              const li = document.createElement("li");
+              li.textContent = error;
+              registerErrorsList.appendChild(li);
+            });
+          }
+          // If successful, hide the overlay
+          else {
+            alert("Password successfully changed!");
+            changeNewPassOverlay.style.display = "none";
+          }
+        } catch (error) {
+          console.log("Error changing password:", error);
+        }
+
+        submitChangepassBtn.textContent = "Changing Password...";
+      });
+
+      requireLogoutBtn.addEventListener("click", (e) => {
+        logout();
+      });
+
+      document.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      async function employeeUsesTemp() {
+        try {
+          const response = await fetch("/arcms/api/v1/employees/uses-temp");
+
+          if (!response.ok) {
+            console.error(
+              "Failed to fetch data:",
+              response.status,
+              response.statusText
+            );
+          } else {
+            const responseData = await response.json();
+            console.log("USES TEMP RESPONSE:", responseData);
+            if (responseData.password_is_temp) {
+              changeNewPassOverlay.style.display = "flex";
+            }
+          }
+        } catch (err) {
+          console.log("error:", err);
+        }
+      }
+
+      async function logout() {
+        try {
+          const response = await fetch("/arcms/api/v1/auth/logout", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (data.redirect) {
+            window.location.href = data.redirect;
+          }
+        } catch (error) {
+          console.error("Logout error:", error);
+        }
+      }
 
       function showOverlay(actionPrompt) {
         confirmOverlay.style.display = "flex";
@@ -163,9 +338,16 @@
             const data = await response.json();
             console.log(data);
 
-            document.getElementById("introduction").value = data.introduction;
-            document.getElementById("position").value = data.position;
+            const honorificsInput = document.getElementById("honorifics");
+            const introInput = document.getElementById("introduction");
             document.getElementById("profile-picture").src = data.image_url;
+            document.getElementById("firstName").value = data.first_name;
+            document.getElementById("middleName").value = data.middle_name;
+            document.getElementById("lastName").value = data.last_name;
+            document.getElementById("position").value = data.position;
+
+            honorificsInput.value = data.honorifics;
+            introInput.value = data.introduction;
 
             let fieldsInput = document.getElementById("researchFields");
             tagify = new Tagify(fieldsInput, {
@@ -174,11 +356,30 @@
               editTags: true, // Allow users to edit tags
             });
 
-            tagify.addTags(data.fields);
+            honorificsInput.disabled = data.honorIsEdited;
+            introInput.disabled = data.introIsEdited;
+            tagify.setDisabled(data.fieldIsEdited);
+
+            if (data.honorIsEdited) {
+              document.getElementById("honorifics-label").textContent =
+                "Honorifics (For Approval)";
+            }
+
+            if (data.introIsEdited) {
+              document.getElementById("intro-label").textContent =
+                "Introduction (For Approval)";
+            }
+
+            if (data.fieldIsEdited) {
+              document.getElementById("research-label").textContent =
+                "Research Fields (For Approval)";
+            }
+            tagify.addTags(data.field);
+            fetchDepartments(data.department_id);
           }
 
           // Fetch departments and populate dropdown
-          async function fetchDepartments() {
+          async function fetchDepartments(department_id) {
             const response = await fetch("/api/departments");
             const departments = await response.json();
 
@@ -191,12 +392,11 @@
             });
 
             // Set the selected department based on the logged-in user (session info)
-            const currentDepartmentId = "<%= user.department_id %>"; // Assuming you pass session info from the backend
+            const currentDepartmentId = department_id; // Assuming you pass session info from the backend
             dropdown.value = currentDepartmentId;
           }
 
           fetchDetails();
-          fetchDepartments();
 
           document
             .getElementById("profile-img")
@@ -268,6 +468,8 @@
                   data[key] = value;
                 });
 
+                console.log("THE DATA:", data);
+
                 try {
                   const response = await fetch(
                     "/arcms/api/v1/employees/update-profile",
@@ -283,6 +485,12 @@
                   const result = await response.json();
 
                   if (response.ok) {
+                    const honorificsInput =
+                      document.getElementById("honorifics");
+                    const introInput = document.getElementById("introduction");
+                    let fieldsInput = document.getElementById("researchFields");
+
+                    location.reload();
                     alert(result.message); // Show success message
                   } else {
                     alert("Error: " + result.message); // Show error message
@@ -322,9 +530,9 @@
               const response = await fetch("/arcms/api/v1/achievements");
               const data = await response.json();
               console.log(data);
-              achievements = data; // Store fetched entries
 
-              if (achievements.length > 0) {
+              if (data.length > 0) {
+                achievements = data; // Store fetched entries
                 renderAchievements(); // Render the fetched entries
               }
             } catch (error) {
@@ -497,6 +705,9 @@
               // Fetch the types for creating a new achievement
               fetchAchievementTypes("achievement-type");
             }
+            document.getElementById("achievement-year").max = new Date()
+              .toISOString()
+              .split("T")[0];
 
             achievementModal.show();
           }
@@ -511,10 +722,12 @@
           });
 
           saveAchievementBtn.addEventListener("click", async function () {
-            const title = document.getElementById("achievement-title").value;
-            const description = document.getElementById(
-              "achievement-description"
-            ).value;
+            const title = sanitizeInput(
+              document.getElementById("achievement-title").value
+            );
+            const description = sanitizeInput(
+              document.getElementById("achievement-description").value
+            );
             const date_achieved =
               document.getElementById("achievement-year").value;
             const achievement_id = editAchievementId;
@@ -587,6 +800,10 @@
                   );
                   achievements[index] = result;
                 } else {
+                  console.log(
+                    "Current Achievements: " + JSON.stringify(achievements)
+                  );
+                  console.log("Result: " + JSON.stringify(result));
                   achievements.push(result);
                 }
 
@@ -607,6 +824,12 @@
               saveAchievementBtn.textContent = "Add Achievement";
             }
           });
+
+          function sanitizeInput(str) {
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML.trim();
+          }
 
           // Button to open the modal for adding a new achievement
           addAchievementBtn.addEventListener("click", () =>
@@ -763,32 +986,43 @@
           let isEditing = false;
 
           const currentYear = new Date().getFullYear();
-          const startYear = 1950; // Start year for the dropdowns
+          const startYear = 1990;
           const dateJoinedDropdown = document.getElementById("org-date-joined");
           const dateActiveDropdown = document.getElementById("org-date-active");
 
-          // Populate year dropdowns
+          // Populate Date Joined dropdown
           for (let year = currentYear; year >= startYear; year--) {
             const option = document.createElement("option");
             option.value = year;
             option.textContent = year;
             dateJoinedDropdown.appendChild(option);
-
-            const activeOption = option.cloneNode(true);
-            dateActiveDropdown.insertBefore(
-              activeOption,
-              dateActiveDropdown.firstChild
-            );
           }
 
-          // Ensure "Present" is the first option in Date Active
+          // Populate Date Active initially with "Present" only
           const presentOption = document.createElement("option");
           presentOption.value = "present";
           presentOption.textContent = "Present";
-          dateActiveDropdown.insertBefore(
-            presentOption,
-            dateActiveDropdown.firstChild
-          );
+          dateActiveDropdown.appendChild(presentOption);
+
+          // When Date Joined changes, update Date Active options
+          dateJoinedDropdown.addEventListener("change", () => {
+            const joinedYear = parseInt(dateJoinedDropdown.value, 10);
+
+            // Clear existing (except 'Present')
+            dateActiveDropdown.innerHTML = "";
+            dateActiveDropdown.appendChild(presentOption.cloneNode(true));
+
+            // Add years starting from joinedYear to currentYear
+            for (let year = currentYear; year >= joinedYear; year--) {
+              const option = document.createElement("option");
+              option.value = year;
+              option.textContent = year;
+              dateActiveDropdown.insertBefore(
+                option,
+                dateActiveDropdown.firstChild
+              );
+            }
+          });
 
           async function fetchOrganizations() {
             try {
@@ -815,20 +1049,34 @@
             orgModal.show();
           });
 
+          function sanitizeInput(str) {
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML.trim();
+          }
+
+          function isValidName(str) {
+            return /^[a-zA-Z0-9\s\-.'()&]+$/.test(str);
+          }
+
           orgForm.addEventListener("submit", async function (e) {
             e.preventDefault();
 
-            const name = document.getElementById("org-name").value.trim();
-            const type = document.getElementById("org-type").value.trim();
-            const category = document
-              .getElementById("org-category")
-              .value.trim();
-            const description = document
-              .getElementById("org-description")
-              .value.trim();
-            const position = document
-              .getElementById("org-position")
-              .value.trim();
+            const name = sanitizeInput(
+              document.getElementById("org-name").value
+            );
+            const type = sanitizeInput(
+              document.getElementById("org-type").value
+            );
+            const category = sanitizeInput(
+              document.getElementById("org-category").value
+            );
+            const description = sanitizeInput(
+              document.getElementById("org-description").value
+            );
+            const position = sanitizeInput(
+              document.getElementById("org-position").value
+            );
             const date_joined =
               document.getElementById("org-date-joined").value;
             const date_active =
@@ -837,7 +1085,27 @@
             const bannerFile = document.getElementById("org-banner").files[0];
             const logoFile = document.getElementById("org-image").files[0];
 
-            let orgData = {
+            // Validate fields
+            if (!isValidName(name)) {
+              alert("Organization name contains invalid characters.");
+              return;
+            }
+
+            if (!isValidName(position)) {
+              alert("Position contains invalid characters.");
+              return;
+            }
+
+            // Optional: Check that date_active is not earlier than date_joined
+            if (
+              date_active !== "present" &&
+              parseInt(date_active) < parseInt(date_joined)
+            ) {
+              alert("Date Active cannot be earlier than Date Joined.");
+              return;
+            }
+
+            const orgData = {
               org_name: name,
               org_type: type,
               image_id: null,
@@ -849,28 +1117,23 @@
               date_active: date_active,
             };
 
-            // Check if editing an existing organization
-            if (currentOrgId) {
-              if (confirm("Are you sure you want to save changes?")) {
-                createOrganization(orgData, bannerFile, logoFile);
-              }
-            } else {
-              // Create a new organization entry
-              if (confirm("Are you sure you want to save this entry?")) {
-                createOrganization(orgData, bannerFile, logoFile);
-              }
-            }
+            const confirmMessage = currentOrgId
+              ? "Are you sure you want to save changes?"
+              : "Are you sure you want to save this entry?";
 
-            orgModal.hide();
+            if (confirm(confirmMessage)) {
+              createOrganization(orgData, bannerFile, logoFile);
+              orgModal.hide();
+            }
           });
 
           // Upload image to the server
           async function uploadImage(file, namePrefix) {
             const formData = new FormData();
-            const extension = file.name.split(".").pop(); // Extract file extension
-            const fileName = `${namePrefix}.${extension}`; // Generate file name
+            const extension = file.name.split(".").pop();
+            const timestamp = Date.now(); // Unique to avoid browser cache
+            const fileName = `${namePrefix}_${timestamp}.${extension}`;
 
-            // Determine the bucket based on the type of image
             const bucket = namePrefix.includes("banner")
               ? "assets/orgBannerImages"
               : "assets/employeeOrgsImages";
@@ -878,8 +1141,6 @@
             formData.append("file", file);
             formData.append("bucket", bucket);
             formData.append("fileName", fileName);
-
-            console.log("Uploading image: ", formData);
 
             try {
               const response = await fetch(
@@ -891,7 +1152,7 @@
               );
 
               if (response.ok) {
-                return await response.json(); // Returns { bucket, fileName, url }
+                return await response.json(); // { image_id, url, etc. }
               } else {
                 console.error("Failed to upload image:", response.statusText);
               }
@@ -1162,6 +1423,7 @@
         function initializeContacts() {
           const editToggle = document.getElementById("edit-toggle");
           const contactForm = document.getElementById("contact-form");
+          const fbInput = document.getElementById("fb-input");
           const contactName = document.getElementById("contact-name");
           const contactTitle = document.getElementById("contact-title");
 
@@ -1179,6 +1441,10 @@
             socialMedia: [],
           };
 
+          contactForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+          });
+
           async function fetchContacts() {
             console.log("Fetching details");
             try {
@@ -1189,6 +1455,7 @@
               const contacts = data.contacts;
 
               contactInfo.name = data.name;
+              contactInfo.email = data.email;
               contactInfo.title = data.position;
 
               if (contacts) {
@@ -1199,7 +1466,6 @@
                 // Update the fields in contactInfo based on the fetched contact data
                 contactInfo.phone = contacts.phone_number || "";
                 contactInfo.landline = contacts.landline || "";
-                contactInfo.email = contacts.email || "";
 
                 // Update social media URLs
                 contactInfo.socialMedia = [
@@ -1228,8 +1494,7 @@
           };
 
           function renderContactInfo() {
-            contactName.textContent = contactInfo.name;
-            contactTitle.textContent = contactInfo.title;
+
             document.getElementById("phone").value = contactInfo.phone;
             // document.getElementById("landline").value = contactInfo.landline;
             document.getElementById("email").value = contactInfo.email;
@@ -1248,9 +1513,7 @@
                     <span class="me-2" style="width: 150px;">
                       ${platform.charAt(0).toUpperCase() + platform.slice(1)}
                     </span>
-                    <input type="url" class="form-control" placeholder="Enter your ${
-                      platform.charAt(0).toUpperCase() + platform.slice(1)
-                    } URL" value="" data-index="${index}" ${
+                    <input type="url" class="form-control" placeholder="www.${platform}.com/username" value="" data-index="${index}" ${
                   !editMode ? "disabled" : ""
                 }>
                   </li>
@@ -1270,74 +1533,130 @@
                     social.platform.toLowerCase()
                   )}"]`
                 );
+
                 if (input) {
-                  input.value = social.url || ""; // Set the value from the database
+                  input.value = social.url || input.value; // Set the value from the database
                 }
               });
             }
           }
 
           async function toggleEditMode() {
-            editMode = !editMode;
-            editToggle.textContent = editMode ? "Save" : "Edit";
-            // addSocialMediaBtn.style.display = editMode ? 'block' : 'none';
-
-            const inputs = contactForm.querySelectorAll("input, select");
-            inputs.forEach((input) => (input.disabled = !editMode));
-
-            if (!editMode) {
+            // If we're in edit mode and trying to save
+            if (editMode) {
               const isConfirmed = confirm(
                 "Are you sure you want to save changes?"
               );
               if (!isConfirmed) {
-                editToggle.disabled = false; // Re-enable if saving was cancelled
+                return; // Don't toggle anything, just stay in edit mode
+              }
+
+              editToggle.disabled = true;
+              editToggle.textContent = "Saving...";
+
+              // Gather data from contactInfo
+
+              console.log("THE CONTACT INFO:", contactInfo);
+              const phonePattern = /^(09|\+63)[0-9]{9}$/;
+
+              if (contactInfo.phone && !phonePattern.test(contactInfo.phone)) {
+                alert("Please enter a valid Philippine phone number.");
+                editToggle.disabled = false;
+                editToggle.textContent = "Save";
                 return;
               }
 
-              editToggle.disabled = true; // Disable the button while saving
-              editToggle.textContent = "Saving..."; // Change button text to "Loading..." while saving
+              // Validate the social media URLs
+              const socialMediaLinks = {
+                facebook_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "facebook"
+                  )?.url || "",
+                instagram_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "instagram"
+                  )?.url || "",
+                linkedin_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "linkedin"
+                  )?.url || "",
+              };
+
+              // Regular expressions for each platform
+              const regexValidators = {
+                facebook:
+                  /(www\.)?facebook\.com\/[a-zA-Z0-9.\-_]+\/?$/i,
+                instagram:
+                  /(www\.)?instagram\.com\/[a-zA-Z0-9._]+\/?$/i,
+                linkedin:
+                  /(www\.)?linkedin\.com\/in\/[a-zA-Z0-9.\-_%]+\/?$/i,
+              };
+
+              for (const [platform, url] of Object.entries(socialMediaLinks)) {
+                const platformKey = platform.replace("_url", ""); // e.g., facebook_url → facebook
+                const validator = regexValidators[platformKey];
+              
+                if (url && validator && !validator.test(url)) {
+                  alert(`Please enter a valid ${platformKey.toUpperCase()} URL.`);
+                  editToggle.disabled = false;
+                  editToggle.textContent = "Save";
+                  return;
+                }
+              }
+              
+
+              const updatedContactInfo = {
+                ...(contactInfo.contactId && {
+                  contact_id: contactInfo.contactId,
+                }),
+                phone_number: contactInfo.phone,
+                landline: contactInfo.landline,
+                email: contactInfo.email,
+                facebook_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "facebook"
+                  )?.url || "",
+                instagram_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "instagram"
+                  )?.url || "",
+                linkedin_url:
+                  contactInfo.socialMedia.find(
+                    (social) => social.platform === "linkedin"
+                  )?.url || "",
+              };
 
               try {
-                await saveContactInfo(); // Call the save function
-                editToggle.textContent = "Edit"; // Revert button text to "Edit" after successful save
+                await saveContactInfo(updatedContactInfo);
+                editMode = false; // Now we exit edit mode only after successful save
+                editToggle.textContent = "Edit";
+
+                const inputs = contactForm.querySelectorAll("input, select");
+                inputs.forEach((input) => (input.disabled = true));
+                document.getElementById("email").disabled = true;
               } catch (error) {
                 console.error("Failed to save contact info:", error);
                 alert("An error occurred while saving. Please try again.");
-                editToggle.textContent = "Save"; // Keep "Save" text in case of error, to retry
+                editToggle.textContent = "Save"; // Stay in save mode
+              } finally {
+                editToggle.disabled = false;
               }
+            } else {
+              // Enter edit mode
+              editMode = true;
+              editToggle.textContent = "Save";
+
+              const inputs = contactForm.querySelectorAll("input, select");
+              inputs.forEach((input) => (input.disabled = false));
+              document.getElementById("email").disabled = true;
             }
 
-            editToggle.disabled = false; // Re-enable the button after save is complete
             renderSocialMedia();
           }
 
-          async function saveContactInfo() {
-            // Gather data from contactInfo
-            const updatedContactInfo = {
-              ...(contactInfo.contactId && {
-                contact_id: contactInfo.contactId,
-              }),
-              phone_number: contactInfo.phone,
-              landline: contactInfo.landline,
-              email: contactInfo.email,
-              facebook_url:
-                contactInfo.socialMedia.find(
-                  (social) => social.platform === "facebook"
-                )?.url || "",
-              instagram_url:
-                contactInfo.socialMedia.find(
-                  (social) => social.platform === "instagram"
-                )?.url || "",
-              linkedin_url:
-                contactInfo.socialMedia.find(
-                  (social) => social.platform === "linkedin"
-                )?.url || "",
-            };
-
-            let errors = {};
-
+          async function saveContactInfo(updatedContactInfo) {
             // console.log("New contact info: " + JSON.stringify(updatedSchedule));
-
+            console.log("THE UPDATED CONTACT INFO:", updatedContactInfo);
             try {
               // Send the updated data to the backend
               const contactResponse = await fetch("/arcms/api/v1/contacts", {
@@ -1350,13 +1669,15 @@
 
               if (!contactResponse.ok) {
                 throw new Error("Failed to save contact information");
-                errors.contacts = "Failed to save contact information";
               }
 
               const updatedContacts = await contactResponse.json();
               console.log("Contact information saved:", updatedContacts);
 
               alert("Contact information saved successfully!");
+
+              editToggle.disabled = false; // Re-enable the button after save is complete
+              fetchContacts();
             } catch (error) {
               console.error("Error saving contact information:", error);
               alert("An error occurred while saving the contact information.");
@@ -1416,7 +1737,8 @@
             "Saturday",
           ];
 
-          let editMode = false;
+          let conHoursEditMode = false;
+          let contTypeEditMode = false;
 
           let schedule = {
             consultationHours: daysOfWeek.map((day) => ({
@@ -1510,7 +1832,7 @@
                             hour.day
                           }"
                               ${hour.available ? "checked" : ""} ${
-                  !editMode ? "disabled" : ""
+                  !conHoursEditMode ? "disabled" : ""
                 }
                               data-index="${index}" data-field="available">
                           <label class="form-check-label" for="available-${
@@ -1524,13 +1846,21 @@
                             hour.start_time
                           }"
                               data-index="${index}" data-field="start_time"
-                              ${!editMode || !hour.available ? "disabled" : ""}>
+                              ${
+                                !conHoursEditMode || !hour.available
+                                  ? "disabled"
+                                  : ""
+                              }>
                           <span class="input-group-text">to</span>
                           <input type="time" class="form-control" value="${
                             hour.end_time
                           }"
                               data-index="${index}" data-field="end_time"
-                              ${!editMode || !hour.available ? "disabled" : ""}>
+                              ${
+                                !conHoursEditMode || !hour.available
+                                  ? "disabled"
+                                  : ""
+                              }>
                       </div>
                   </div>
                   <div class="col-5">
@@ -1538,11 +1868,11 @@
                           <label class="form-check-label me-2" for="location-${
                             hour.day
                           }">Location:</label>
-                          <input type="text" class="form-control" placeholder="No location set" id="location-${
+                          <input type="text" class="form-control" placeholder="No location set" maxlength="20" id="location-${
                             hour.day
                           }" value="${hour.location}"
                               data-index="${index}" data-field="location"
-                              ${!editMode ? "disabled" : ""}>
+                              ${!conHoursEditMode ? "disabled" : ""}>
                       </div>
                   </div>
               </div>
@@ -1603,17 +1933,19 @@
           }
 
           editConsultationTypes.addEventListener("click", async () => {
-            editMode = !editMode;
+            contTypeEditMode = !contTypeEditMode;
 
-            editConsultationTypes.textContent = editMode ? "Save" : "Edit";
+            editConsultationTypes.textContent = contTypeEditMode
+              ? "Save"
+              : "Edit";
 
             document
               .querySelectorAll("#consultation-types input")
               .forEach((input) => {
-                input.disabled = !editMode;
+                input.disabled = !contTypeEditMode;
               });
 
-            if (!editMode) {
+            if (!contTypeEditMode) {
               if (!confirm("Are you sure you want to save changes?")) return;
 
               editConsultationTypes.textContent = "Updating...";
@@ -1633,9 +1965,11 @@
           });
 
           editConsultationHours.addEventListener("click", async () => {
-            editMode = !editMode;
+            conHoursEditMode = !conHoursEditMode;
 
-            editConsultationHours.textContent = editMode ? "Save" : "Edit";
+            editConsultationHours.textContent = conHoursEditMode
+              ? "Save"
+              : "Edit";
 
             document
               .querySelectorAll("#consultation-hours .form-check-input")
@@ -1654,8 +1988,8 @@
                 );
 
                 // Enable/disable fields based on edit mode and checkbox state
-                const enableFields = editMode && checkbox.checked;
-                checkbox.disabled = !editMode; // Checkboxes are editable only in edit mode
+                const enableFields = conHoursEditMode && checkbox.checked;
+                checkbox.disabled = !conHoursEditMode; // Checkboxes are editable only in edit mode
                 startTimeInput.disabled = !enableFields;
                 endTimeInput.disabled = !enableFields;
                 locationInput.disabled = !enableFields;
@@ -1669,7 +2003,7 @@
                 });
               });
 
-            if (!editMode) {
+            if (!conHoursEditMode) {
               if (!confirm("Are you sure you want to save changes?")) {
                 return;
               }
@@ -2095,6 +2429,94 @@
         }
 
         initializeOverview();
+      });
+
+      // Responsive Sidebar JavaScript
+
+      document.addEventListener("DOMContentLoaded", function () {
+        const sidebar = document.getElementById("sidebar");
+        const mainContent = document.querySelector(".main-content");
+        const sidebarToggle = document.getElementById("sidebarToggle");
+        const mobileToggle = document.getElementById("mobileToggle");
+        const overlay = document.getElementById("sidebarOverlay");
+
+        // Function to check if we're on mobile view
+        function isMobileView() {
+          return window.innerWidth < 768; // Bootstrap md breakpoint
+        }
+
+        // Desktop sidebar toggle (collapse/expand)
+        if (sidebarToggle) {
+          sidebarToggle.addEventListener("click", function () {
+            sidebar.classList.toggle("collapsed");
+            mainContent.classList.toggle("expanded");
+
+            // Toggle sidebar icon
+            const icon = this.querySelector("i");
+            if (sidebar.classList.contains("collapsed")) {
+              icon.classList.remove("bi-chevron-left");
+              icon.classList.add("bi-chevron-right");
+            } else {
+              icon.classList.remove("bi-chevron-right");
+              icon.classList.add("bi-chevron-left");
+            }
+
+            // Toggle sidebar logo
+            const logo = document.getElementById("sidebarLogo");
+            if (sidebar.classList.contains("collapsed")) {
+              logo.src = "/images/lpu_logo_icon.png"; // smaller or square logo
+              logo.height = 30;
+            } else {
+              logo.src = "/images/lpu_logo_horizontal.jpg"; // original horizontal logo
+              logo.height = 76; // restore size
+            }
+          });
+        }
+
+        // Mobile sidebar toggle (show/hide)
+        if (mobileToggle) {
+          mobileToggle.addEventListener("click", function () {
+            sidebar.classList.toggle("mobile-open");
+            overlay.classList.toggle("active");
+
+            // Prevent body scrolling when sidebar is open
+            if (sidebar.classList.contains("mobile-open")) {
+              document.body.style.overflow = "hidden";
+            } else {
+              document.body.style.overflow = "";
+            }
+          });
+        }
+
+        // Close sidebar when clicking overlay
+        if (overlay) {
+          overlay.addEventListener("click", function () {
+            sidebar.classList.remove("mobile-open");
+            overlay.classList.remove("active");
+            document.body.style.overflow = "";
+          });
+        }
+
+        // Close sidebar when clicking a nav link on mobile
+        const navLinks = document.querySelectorAll(".sidebar .nav-link");
+        navLinks.forEach(function (link) {
+          link.addEventListener("click", function () {
+            if (isMobileView() && sidebar.classList.contains("mobile-open")) {
+              sidebar.classList.remove("mobile-open");
+              overlay.classList.remove("active");
+              document.body.style.overflow = "";
+            }
+          });
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", function () {
+          if (!isMobileView() && sidebar.classList.contains("mobile-open")) {
+            sidebar.classList.remove("mobile-open");
+            overlay.classList.remove("active");
+            document.body.style.overflow = "";
+          }
+        });
       });
     </script>
   </body>

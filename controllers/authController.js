@@ -1,6 +1,7 @@
 const userService = require("../models/userService");
 const ensureAuthenticated = require("../middlewares/authMiddleware");
 const Employee = require("../models/Employee");
+const Admin = require("../models/Admin");
 const bcrypt = require("bcrypt"); // For password hashing
 const validator = require("validator"); // For email validation
 const axios = require("axios");
@@ -8,14 +9,18 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const supabase = require("../utils/supabaseClient");
 const Image = require("../models/Image");
+const { format } = require("path");
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
+  host: "smtp.office365.com",
   port: 587,
   secure: false, // true for port 465, false for other ports
   auth: {
-    user: process.env.GOOGLE_APP_EMAIL,
-    pass: process.env.GOOGLE_APP_PASS,
+    user: process.env.OUTLOOK_APP_EMAIL,
+    pass: process.env.OUTLOOK_APP_PASS,
+  },
+  tls: {
+    ciphers: "SSLv3",
   },
 });
 
@@ -26,27 +31,50 @@ exports.login = async (req, res) => {
     const employee = await Employee.findByEmail(email); // Fetch employee from DB
 
     // Check if employee does not exist or password is incorrect
-    if (!employee || !(await employee.validatePassword(password))) {
-      return res.status(401).json({ message: "Invalid email or password" });
+    if (!employee) {
+      return res.status(401).json({ message: "Email does not exist" });
     }
 
     // Check if employee is inactive
-    if (!employee.isActive) {
-      return res.status(401).json({
-        message: "Account is currently unavailable. Please try again.",
-      });
+    if (!employee.isActive || !employee.isApproved) {
+      return res.status(401).json({ message: "Email is not active" });
+    }
+
+    // Check if password is correct
+    if (!(await employee.validatePassword(password))) {
+      return res.status(401).json({ message: "Password is incorrect" });
     }
 
     // Step 3: Store employee data in session (excluding private info)
     req.session.user = {
       employee_id: employee.employee_id,
       first_name: employee.first_name,
+      middle_name: employee.middle_name,
       last_name: employee.last_name,
-      honorifics: employee.honorifics,
       email: employee.getEmail(),
-      position: employee.position,
-      department_id: employee.department_id,
+      employee_number: employee.employee_number,
     };
+
+    // LOG ACTION
+
+    const { data: newLog, error: logError } = await supabase
+      .from("log")
+      .insert({
+        action: "LOGIN",
+        actor: req.session.user.email,
+        is_admin: false,
+        status: "success",
+        employee_number: req.session.user.employee_number,
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.log("Error in adding new log:", logError);
+      return res.status(400).json({ message: "Error adding log" });
+    }
+
+    console.log("New log added:", newLog);
 
     // Step 4: Redirect to the home page or return a success message
     res.redirect("/home"); // You can customize the redirection route as needed
@@ -57,25 +85,61 @@ exports.login = async (req, res) => {
 };
 
 // Handle logout
-exports.logout = (req, res) => {
+exports.logout = async (req, res) => {
+  // LOG ACTION
+
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: "LOGOUT",
+      actor: req.session.user.email,
+      is_admin: false,
+      status: "success",
+      employee_number: req.session.user.employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
   req.session.destroy((err) => {
     if (err) {
-      console.error("Error during logout:", err);
+      return res.status(500).json({ message: "Logout Failed" });
     }
-    res.redirect("/");
+    res.clearCookie("connect.sid");
+    res.status(200).json({ redirect: "/" });
   });
 };
 
 exports.signup = async (req, res) => {
   // Check if a required value are missing.
-  const { fname, mname, honorifics, lname, email, password, passwordConfirm } =
-    req.body;
+  const {
+    fname,
+    mname,
+    honorifics,
+    lname,
+    email,
+    password,
+    passwordConfirm,
+    employee_number,
+  } = req.body;
 
   const signupErrors = [];
 
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*\W).+$/;
 
-  if (!fname || !lname || !email || !password || !passwordConfirm) {
+  if (
+    !fname ||
+    !lname ||
+    !email ||
+    !password ||
+    !passwordConfirm ||
+    !employee_number
+  ) {
     return res.status(400).json({
       status: "failed",
       message: "Fill out all required inputs!",
@@ -90,12 +154,29 @@ exports.signup = async (req, res) => {
     });
   }
 
+  if (!isLPUEmail(email)) {
+    signupErrors.push("Please enter a valid LPU email address!");
+  }
+
   // Check if email already exists
   const existingEmployee = await Employee.findByEmail(email);
   if (existingEmployee) {
     signupErrors.push(
       "The email you used already exists! Please try another one."
     );
+  }
+
+  // Check if employee number already exists
+
+  const existingEmployeeNumber = await Employee.findByEmployeeNumber(
+    employee_number
+  );
+  const existingEmployeeNumberAdmin = await Admin.findByEmployeeNumber(
+    employee_number
+  );
+
+  if (existingEmployeeNumber || existingEmployeeNumberAdmin) {
+    signupErrors.push("The employee number you used already exists!");
   }
 
   console.log("CARRY ON ");
@@ -133,11 +214,14 @@ exports.signup = async (req, res) => {
     honorifics: honorifics,
     middle_name: mname,
     last_name: lname,
+    employee_number: employee_number,
     email: email,
     password: hashedPassword, // Store the hashed password
     image_id: 68, // Use default profile image_id
     date_created: new Date().toISOString(), // Automatically set the creation date
-    isActive: req.body.isActive ? true : false,
+    isActive: false,
+    isApproved: false,
+    honorifics: honorifics,
   };
 
   if (signupErrors.length > 0) {
@@ -167,6 +251,25 @@ exports.signup = async (req, res) => {
 
   console.log(req.body);
   // Return response
+
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: "SIGNED_UP",
+      actor: email,
+      is_admin: false,
+      status: "requested",
+      employee_number: employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
 
   return res.status(200).json({
     status: "success",
@@ -205,28 +308,154 @@ exports.updateProfile = async (req, res) => {
         );
       }
     }
-    // Create the updated profile data
+
+    // Update the user profile in the database here
+    // Assuming you have a function in your model to handle this
+
+    const { data: existingData, error: fetchError } = await supabase
+      .from("employee")
+      .select("*")
+      .eq("employee_id", req.session.user.employee_id)
+      .single();
+
+    console.log("EXISTING DATA FIELD:", existingData.field);
+    console.log("NEW DATA FIELD:", formattedResearchFields);
+
+    const introIsEdited = existingData.introduction != introduction;
+    const fieldIsEdited = 
+      (existingData.field || []).join(",") !== formattedResearchFields.join(",");
+
+
+    const honorIsEdited =
+      normalize(honorifics) !== normalize(existingData.honorifics);
+
     const updatedProfileData = {
-      first_name: firstName,
-      middle_name: middleName,
-      last_name: lastName,
       honorifics: honorifics,
       introduction: introduction,
-      position: position,
       field: formattedResearchFields,
-      department_id: department,
+      oldHonorifics: !existingData.honorIsEdited
+        ? existingData.honorifics
+        : existingData.oldHonorifics,
+      oldField: !existingData.fieldIsEdited
+        ? existingData.field
+        : existingData.oldField,
+      oldIntroduction: !existingData.introIsEdited
+        ? existingData.introduction
+        : existingData.oldIntroduction,
+      introIsEdited: introIsEdited || existingData.introIsEdited,
+      fieldIsEdited: fieldIsEdited || existingData.fieldIsEdited,
+      honorIsEdited: honorIsEdited || existingData.honorIsEdited,
     };
 
-    console.log("THE UPDATED PROFILE DATA:", updatedProfileData);
     if (image_id) {
       updatedProfileData.image_id = image_id;
     }
 
-    console.log(updatedProfileData);
+    const { data: employeeData, error: employeeError } = await supabase
+      .from("employee")
+      .update(updatedProfileData)
+      .eq("employee_id", req.session.user.employee_id)
+      .select()
+      .single();
 
-    // Update the user profile in the database here
-    // Assuming you have a function in your model to handle this
-    await Employee.update(req.session.user.employee_id, updatedProfileData);
+    if (employeeError) {
+      console.log("FAILED UPDATING EMPLOYEE PROFILE:", employeeError);
+      return res.status(400).json({ message: "Failed to update profile" });
+    }
+    console.log("NEW EMPLOYEE DATA:", employeeData);
+
+    console.log(
+      "HONORIFICS CHANGED?",
+      existingData.honorifics != updatedProfileData.honorifics
+    );
+
+    if (honorIsEdited && !existingData.honorIsEdited) {
+      const { data: newLog, error: logError } = await supabase
+        .from("log")
+        .insert({
+          action: "UPDATE_HONORIFICS",
+          action_details: `${existingData.honorifics} -> ${updatedProfileData.honorifics}`,
+          actor: employeeData.email,
+          is_admin: false,
+          status: "requested",
+          employee_number: employeeData.employee_number,
+        })
+        .select()
+        .single();
+
+      if (logError) {
+        console.log("Error in adding new log:", logError);
+        return res.status(400).json({ message: "Error adding log" });
+      }
+
+      console.log("New log added:", newLog);
+    }
+    if (introIsEdited && !existingData.introIsEdited) {
+      const { data: newLog, error: logError } = await supabase
+        .from("log")
+        .insert({
+          action: "UPDATE_USER_INTRO",
+          action_details: `${employeeData.introduction}`,
+          actor: employeeData.email,
+          is_admin: false,
+          status: "requested",
+          employee_number: employeeData.employee_number,
+        })
+        .select()
+        .single();
+
+      if (logError) {
+        console.log("Error in adding new log:", logError);
+        return res.status(400).json({ message: "Error adding log" });
+      }
+
+      console.log("New log added:", newLog);
+    }
+    if (fieldIsEdited && !existingData.fieldIsEdited) {
+      const { data: newLog, error: logError } = await supabase
+        .from("log")
+        .insert({
+          action: "UPDATE_RESEARCH_FIELDS",
+          action_details: `${employeeData.field}`,
+          actor: employeeData.email,
+          is_admin: false,
+          status: "requested",
+          employee_number: employeeData.employee_number,
+        })
+        .select()
+        .single();
+
+      if (logError) {
+        console.log("Error in adding new log:", logError);
+        return res.status(400).json({ message: "Error adding log" });
+      }
+
+      console.log("New log added:", newLog);
+    }
+
+    console.log("NEW IMAGE_ID", updatedProfileData.image_id);
+    console.log("OLD IMAGE_ID", existingData.image_id);
+    if (updatedProfileData.image_id) {
+      const { data: newLog, error: logError } = await supabase
+        .from("log")
+        .insert({
+          action: "UPDATE_PROFILE",
+          action_details: `Profile image updated`,
+          actor: employeeData.email,
+          is_admin: false,
+          status: "success",
+          employee_number: employeeData.employee_number,
+        })
+        .select()
+        .single();
+
+      if (logError) {
+        console.log("Error in adding new log:", logError);
+        return res.status(400).json({ message: "Error adding log" });
+      }
+
+      console.log("New log added:", newLog);
+    }
 
     // Update session with the new profile data, while preserving existing values
     if (req.session.admin) {
@@ -245,7 +474,9 @@ exports.updateProfile = async (req, res) => {
     };
 
     // Send a success response
-    res.status(200).json({ message: "Profile updated successfully!" });
+    res
+      .status(200)
+      .json({ message: "Profile updated successfully!", employeeData });
   } catch (error) {
     console.error("Error updating profile:", error);
     res.status(500).json({ message: "Failed to update profile" });
@@ -253,35 +484,104 @@ exports.updateProfile = async (req, res) => {
 };
 
 exports.approveUser = async (req, res) => {
-  // Change the status of the user from inactive to active
+  // Create activation token
+  const activationData = createAccountActivationToken();
+
   const { data: user, error } = await supabase
     .from("employee")
-    .update({ isActive: true })
+    .update({
+      isApproved: true,
+      verification_expiration_date: activationData.tokenExpirationDate,
+      account_verification_token: activationData.accountVerificationToken,
+    })
     .eq("employee_id", req.params.employeeId)
     .single();
 
-  console.log("THE APPROVED USER:", user);
+  const { password, password_reset_token, token_expiration_date, ...safeUser } =
+    user;
 
-  // Send an email to the user
   try {
-    const info = await transporter.sendMail({
-      from: `"TEAM MID" <${process.env.GOOGLE_APP_EMAIL}>`, // sender address
-      to: user.email, //  receivers
-      subject: "✔ Registration Approved ✔",
-      text: `Registration Approved`,
-      html: `<p>Your registration has been approved by the administrators. Please <a href= 'https://arbusinesscardcms.onrender.com/'>login</a> with your account to proceed.</p>`,
-    });
-  } catch (err) {
-    console.log(err);
+    const info = transporter
+      .sendMail({
+        from: `"TEAM MID" <${process.env.OUTLOOK_APP_EMAIL}>`,
+        to: safeUser.email,
+        subject: "Welcome to ARCMS – Please Activate Your Employee Account",
+        text: `Welcome to ARCMS! Your employee account has been approved.
+    
+    Please verify your account using the link below:
+    ${req.protocol}://${req.get("host")}/employee/verified/${
+          activationData.verificationToken
+        }
+    
+    After logging in, be sure to change your password.`,
+
+        html: `
+        <h2>Welcome to ARCMS!</h2>
+        <p>Your employee account has been approved.</p>
+        <p>
+          Please verify your account:
+          <a href="${req.protocol}://${req.get("host")}/employee/verified/${
+          activationData.verificationToken
+        }">
+            Activate My Account
+          </a>
+        </p>
+        <p>If the button doesn't work, copy and paste this link into your browser:</p>
+        <p><a href="${req.protocol}://${req.get("host")}/employee/verified/${
+          activationData.verificationToken
+        }">
+          ${req.protocol}://${req.get("host")}/employee/verified/${
+          activationData.verificationToken
+        }
+        </a></p>
+        <p>We're excited to have you on board!<br>— The ARCMS Team</p>
+      `,
+      })
+      .then((info) => {
+        console.log("Email sent successfully:", info.messageId);
+      })
+      .catch((error) => {
+        console.error("Error sending email:", error);
+        // Optionally log error to external service
+      });
+
+    console.log("Email sent successfully:", info.messageId);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    // Optionally, you can respond with a status or log this to an error tracking service
+    res
+      .status(500)
+      .json({ message: "Failed to send email. Please try again later." });
   }
 
-  const image = await Image.getImageById(user.image_id);
-  user.image_url = image ? image.image_url : null;
+  const image = await Image.getImageById(safeUser.image_id);
+  safeUser.image_url = image ? image.image_url : null;
+
+  // LOG ACTION
+
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: "APPROVE_EMPLOYEE",
+      actor: req.session.admin.email,
+      is_admin: true,
+      status: "success",
+      employee_number: req.session.admin.employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
 
   res.status(200).json({
     status: "success",
     message: "User successfully approved!",
-    data: user,
+    data: safeUser,
   });
 };
 exports.approveAll = async (req, res) => {
@@ -289,21 +589,27 @@ exports.approveAll = async (req, res) => {
   const employees = await Employee.activateEmployees();
 
   console.log(employees);
-  // Send an email to the user
 
-  // const nodemailer = require("nodemailer");
+  const nodemailer = require("nodemailer");
 
-  // try {
-  //   const info = await transporter.sendMail({
-  //     from: `"TEAM MID" <${process.env.GOOGLE_APP_EMAIL}>`, // sender address
-  //     to: "blueming972@gmail.com", //  receivers
-  //     subject: "✔ Registration Approved ✔",
-  //     text: "Registration Approved",
-  //     html: "<p>Your registration has been approved by the administrators. Please <a href= 'http://localhost:3000/login'>login</a> with your account to proceed.</p>",
-  //   });
-  // } catch (err) {
-  //   console.log(err);
-  // }
+  for (const employee of employees) {
+    try {
+      console.log("the employee:", employee);
+      const info = await transporter.sendMail({
+        from: `"TEAM MID" <${process.env.GOOGLE_APP_EMAIL}>`,
+        to: employee.email, // or your test email
+        subject: "✔ Registration Approved ✔",
+        text: "Registration Approved",
+        html: "<p>Your registration has been approved by the administrators. Please <a href='https://arbusinesscardcms.onrender.com/'>login</a> with your account to proceed.</p>",
+      });
+      console.log(`Email sent to ${employee.email}`);
+    } catch (err) {
+      console.error(`Failed to send email to ${employee.email}:`, err);
+    }
+
+    const image = await Image.getImageById(employee.image_id);
+    employee.image_url = image ? image.image_url : null;
+  }
 
   res.status(200).json({
     status: "success",
@@ -322,6 +628,9 @@ exports.changePassword = async (req, res) => {
     passErrors.push("Please fill out all the required inputs!");
   }
 
+  console.log("CURRENT PASSWORD:", currentPassword);
+  console.log("NEW PASSWORD:", newPassword);
+  console.log("CONFIRM NEW PASSWORD:", passwordConfirm);
   // Get the current admin
   const employee = await Employee.findById(employee_id);
   const passwordMatch = await employee.validatePassword(
@@ -372,6 +681,27 @@ exports.changePassword = async (req, res) => {
   } else {
     await Employee.changePassword(employee_id, hashedPassword);
 
+    // LOG ACTION
+
+    const { data: newLog, error: logError } = await supabase
+      .from("log")
+      .insert({
+        action: "CHANGE_PASSWORD",
+        actor: req.session.user.email,
+        is_admin: false,
+        status: "success",
+        employee_number: req.session.user.employee_number,
+      })
+      .select()
+      .single();
+
+    if (logError) {
+      console.log("Error in adding new log:", logError);
+      return res.status(400).json({ message: "Error adding log" });
+    }
+
+    console.log("New log added:", newLog);
+
     res.status(200).json({
       status: "success",
       message: "Password successfully updated!",
@@ -384,9 +714,11 @@ exports.forgotPassword = async (req, res) => {
   const { data, error } = await supabase
     .from("employee")
     .select("*")
-    .eq("email", req.body.email);
+    .eq("email", req.body.email)
+    .single();
 
-  if (data.length === 0) {
+  if (data === null) {
+    console.log("BRUH NO EMAIL");
     return res.status(404).json({
       status: "failed",
       message: "There is no existing user associated with this email address!",
@@ -402,7 +734,7 @@ exports.forgotPassword = async (req, res) => {
       password_reset_token: resetData.passwordResetToken,
       token_expiration_date: resetData.tokenExpirationDate,
     })
-    .eq("employee_id", data[0].employee_id);
+    .eq("employee_id", data.employee_id);
 
   // 3. Send the reset link to the email of the user
   try {
@@ -411,7 +743,7 @@ exports.forgotPassword = async (req, res) => {
     }`;
 
     const info = await transporter.sendMail({
-      from: `"TEAM MID" <${process.env.GOOGLE_APP_EMAIL}>`, // sender address
+      from: `"TEAM MID" <${process.env.OUTLOOK_APP_EMAIL}>`, // sender address
       to: req.body.email, //  receivers
       subject: "Password Reset Link",
       text: `Password Reset Link`,
@@ -424,6 +756,19 @@ exports.forgotPassword = async (req, res) => {
   } catch (err) {
     console.log(err);
   }
+
+  // LOG ACTION
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: "FORGOT_PASSWORD",
+      actor: req.body.email,
+      is_admin: false,
+      status: "success",
+      employee_number: data.employee_number,
+    })
+    .select()
+    .single();
 
   res.status(200).json({
     status: "success",
@@ -521,3 +866,33 @@ const createPasswordResetToken = () => {
     tokenExpirationDate,
   };
 };
+
+const createAccountActivationToken = () => {
+  const verificationToken = crypto.randomBytes(64).toString("hex");
+
+  const accountVerificationToken = crypto
+    .createHash("sha256")
+    .update(verificationToken)
+    .digest("hex");
+
+  const tokenExpirationDate = new Date(
+    Date.now() + 24 * 60 * 60 * 1000
+  ).toISOString(); // Expires in 24 hours
+
+  return {
+    verificationToken,
+    accountVerificationToken,
+    tokenExpirationDate,
+  };
+};
+
+function normalize(str) {
+  return (str || "") // handle null/undefined
+    .trim() // remove leading/trailing whitespace
+    .replace(/\s+/g, " ") // collapse multiple spaces to one
+    .toLowerCase(); // make it case-insensitive (optional)
+}
+
+function isLPUEmail(email) {
+  return email.endsWith("@lpunetwork.edu.ph") || email.endsWith("@lpu.edu.ph");
+}

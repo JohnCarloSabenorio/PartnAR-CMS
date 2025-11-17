@@ -71,6 +71,28 @@ exports.addAward = async (req, res) => {
     awardCategory,
     uploadedImage.image_id
   );
+
+  // LOG ACTION
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: `ADD_LPU_AWARD`,
+      action_details: `LPU-C Award Added: ${awardTitle}`,
+      actor: req.session.admin.email,
+      is_admin: true,
+      status: "success",
+      employee_number: req.session.admin.employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
+
   res.status(200).json({
     status: "success",
     message: "successfully added an lpu award!",
@@ -85,6 +107,27 @@ exports.editAward = async (req, res) => {
     req.body.awardTitle,
     req.body.awardCategory
   );
+
+  // LOG ACTION
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: `UPDATE_LPU_AWARD`,
+      action_details: `LPU-C Award Updated: ${req.body.awardTitle}`,
+      actor: req.session.admin.email,
+      is_admin: true,
+      status: "success",
+      employee_number: req.session.admin.employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
   res.status(200).json({
     status: "success",
     message: "successfully edited lpu awards!",
@@ -96,7 +139,9 @@ exports.deleteAward = async (req, res) => {
   const { data, error } = await supabase
     .from("award")
     .delete()
-    .eq("award_id", req.params.id);
+    .eq("award_id", req.params.id)
+    .select()
+    .single();
 
   if (error) {
     return res.status(400).json({
@@ -104,6 +149,27 @@ exports.deleteAward = async (req, res) => {
       message: "Failed to delete award! Please try again.",
     });
   }
+
+  // LOG ACTION
+  const { data: newLog, error: logError } = await supabase
+    .from("log")
+    .insert({
+      action: `DELETE_LPU_AWARD`,
+      action_details: `LPU-C Award Deleted: ${data.award_title}`,
+      actor: req.session.admin.email,
+      is_admin: true,
+      status: "success",
+      employee_number: req.session.admin.employee_number,
+    })
+    .select()
+    .single();
+
+  if (logError) {
+    console.log("Error in adding new log:", logError);
+    return res.status(400).json({ message: "Error adding log" });
+  }
+
+  console.log("New log added:", newLog);
 
   res
     .status(204)

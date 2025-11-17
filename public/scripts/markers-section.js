@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async (e) => {
   // Create business Card Overlay components
   const createMarkerOverlay = document.querySelector(".create-marker-overlay");
   const closeCreateOverlay = document.querySelector(".close-create-marker");
-  const createMarkerBtn = document.querySelector(".add-target-btn");
+  // const createMarkerBtn = document.querySelector(".add-target-btn");
   // Create business card inputs
 
   const displayedCreateImage = document.querySelector(".create-marker-img");
@@ -47,6 +47,14 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     const file = e.target.files[0];
 
     if (file) {
+      const allowedTypes = ["image/jpeg", "image/png"];
+
+      if (!allowedTypes.includes(file.type)) {
+        showErrorMessage("Only JPG and PNG images are allowed.");
+        e.target.value = ""; // Clear the selected file
+        return;
+      }
+
       const imageUrl = URL.createObjectURL(file);
       displayedCreateImage.src = imageUrl;
     }
@@ -57,9 +65,9 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     createMarkerOverlay.style.display = "none";
   });
 
-  createMarkerBtn.addEventListener("click", (e) => {
-    createMarkerOverlay.style.display = "flex";
-  });
+  // createMarkerBtn.addEventListener("click", (e) => {
+  //   createMarkerOverlay.style.display = "flex";
+  // });
 
   deleteBcardbtn.addEventListener("click", (e) => {
     deleteBcardOverlay.style.display = "flex";
@@ -83,7 +91,7 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     editTargetBtn.textContent = "Edit";
     targetNameInput.disabled = true;
     targetWidthInput.disabled = true;
-    targetActiveInput.disabled = true;
+    // targetActiveInput.disabled = true;
     targetMetadata.disabled = true;
     newTargetUpload.disabled = true;
     editing = false;
@@ -112,6 +120,19 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     const file = e.target.files[0];
 
     if (file) {
+      const allowedTypes = ["image/jpeg", "image/png"];
+      const validExtensions = /\.(jpe?g|png)$/i;
+
+      if (
+        !allowedTypes.includes(file.type) ||
+        !validExtensions.test(file.name)
+      ) {
+        showErrorMessage("Only JPG and PNG images are allowed.");
+        e.target.value = "";
+        displayedTargetImage.src = "";
+        return;
+      }
+
       const imageUrl = URL.createObjectURL(file);
       displayedTargetImage.src = imageUrl;
     }
@@ -121,17 +142,48 @@ document.addEventListener("DOMContentLoaded", async (e) => {
     if (!editing) {
       // This will trigger if the user wants to update the data of the target
       e.target.textContent = "Save";
-      targetNameInput.disabled = false;
-      targetWidthInput.disabled = false;
-      targetActiveInput.disabled = false;
-      targetMetadata.disabled = false;
+      // targetActiveInput.disabled = false;
+      // targetMetadata.disabled = false;
       newTargetUpload.disabled = false;
       editing = true;
     } else {
       // This will trigger after the user saves the updated data
       await updateBusinessCardData();
+
       resetEditTargetInputs();
     }
+
+    const updatedTargetData = await Promise.all(
+      targets.map(async (target) =>
+        getBusinessCardData(
+          target.image_target,
+          target.date_created,
+          target.date_modified
+        )
+      )
+    );
+
+    targets = await getAllBusinessCards();
+    const updatedImageTargetEls = document.querySelectorAll(".image-target");
+
+    updatedImageTargetEls.forEach((el) => {
+      const imageTargetData = updatedTargetData.find(
+        (data) => data.target_id === el.id
+      );
+      const theTarget = targets.find((data) => data.image_target === el.id);
+
+      // Clear previous click handlers to prevent stacking
+      el.replaceWith(el.cloneNode(true));
+    });
+
+    document.querySelectorAll(".image-target").forEach((el) => {
+      const imageTargetData = updatedTargetData.find(
+        (data) => data.target_id === el.id
+      );
+      const theTarget = targets.find((data) => data.image_target === el.id);
+
+      showOverlayHandler(el, imageTargetData, el.id, theTarget);
+    });
   });
 
   function addMetadataOption(employee_id, fullname) {
@@ -214,7 +266,7 @@ document.addEventListener("DOMContentLoaded", async (e) => {
       const formData = new FormData();
       formData.append("name", targetNameInput.value);
       formData.append("width", targetWidthInput.value);
-      formData.append("active_flag", targetActiveInput.checked);
+      // formData.append("active_flag", targetActiveInput.checked);
       formData.append("bucket", "assets/targetImages");
       formData.append("application_metadata", JSON.stringify(metadata));
 
@@ -228,11 +280,16 @@ document.addEventListener("DOMContentLoaded", async (e) => {
       });
 
       if (!response.ok) {
+        showErrorMessage(
+          "The business card image may be invalid or is still processing. Please try again later."
+        );
         console.log(`Error: ${response.status} - ${response.statusText}`);
+        return;
       }
 
       if (response.status === 200) {
         showSuccessMessage("Business card successfully updated!");
+        editTargetBtn.textContent = "Save";
       }
       const data = await response.json();
 
@@ -243,6 +300,8 @@ document.addEventListener("DOMContentLoaded", async (e) => {
         );
 
         markerNewImage.src = data.image_url;
+
+        associatedEmployee.image_url = data.image_url;
       }
 
       console.log("UPDATE RESPONSE:", data);
@@ -397,17 +456,17 @@ document.addEventListener("DOMContentLoaded", async (e) => {
       }
 
       const { employeesList } = await response.json();
+      activeEmployees = employeesList.filter((e) => e.isActive);
 
-      activeEmployees = employeesList;
-
+      console.log("ACTIVE EMPS:", activeEmployees);
       return activeEmployees;
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
   }
 
-  const targets = await getAllBusinessCards();
-  const employees = await getActiveEmployees();
+  let targets = await getAllBusinessCards();
+  let employees = await getActiveEmployees();
 
   // Add employee full name in metadata dropdown
   employees.forEach((employee) => {

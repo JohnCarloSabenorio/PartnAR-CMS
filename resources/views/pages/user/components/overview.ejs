@@ -36,7 +36,7 @@
       <form id="profileForm" method="POST">
         <div class="row">
           <div class="col-md-6 form-group">
-            <label for="firstName" class="form-label">First Name</label>
+            <label for="firstName" id="fname-label" class="form-label">First Name</label>
             <input
               type="text"
               class="form-control"
@@ -44,24 +44,26 @@
               name="firstName"
               value="<%= user.first_name %>"
               placeholder="Enter your first name"
+              disabled
             />
           </div>
           <div class="col-md-6 form-group">
-            <label for="middleName" class="form-label">Middle Name</label>
+            <label for="middleName" id="mname-label" class="form-label">Middle Name</label>
             <input
               type="text"
               class="form-control"
               id="middleName"
               name="middleName"
               value="<%= user.middle_name %>"
-              placeholder="Enter your middle name"
+              placeholder="N/A"
+              disabled
             />
           </div>
         </div>
 
         <div class="row">
           <div class="col-md-6 form-group">
-            <label for="lastName" class="form-label">Last Name</label>
+            <label for="lastName" id="lname-label" class="form-label">Last Name</label>
             <input
               type="text"
               class="form-control"
@@ -69,63 +71,84 @@
               name="lastName"
               value="<%= user.last_name %>"
               placeholder="Enter your last name"
+              disabled
             />
           </div>
           <div class="col-md-6 form-group">
-            <label for="position" class="form-label">Current Position</label>
+            <label for="position" id="position-label" class="form-label">Current Position</label>
             <input
               type="text"
               class="form-control"
               name="position"
               id="position"
               placeholder="Enter your current position"
+              disabled
             />
           </div>
         </div>
 
         <div class="row">
           <div class="col-md-6 form-group">
-            <label for="department" class="form-label">Department</label>
+            <label for="department" id="dept-label" class="form-label">Department</label>
             <select
               name="department"
               id="departmentDropdown"
               class="form-control"
+              disabled
             >
               <!-- Options will be populated by JavaScript -->
             </select>
           </div>
           <div class="col-md-6 form-group">
-            <label for="honorifics" class="form-label">Honorifics</label>
-            <input
-              type="text"
-              class="form-control"
-              name="honorifics"
-              id="honorifics"
-              value="<%= user.honorifics %>"
-              placeholder="Enter honorifics"
-            />
+            <label for="honorifics" id="honorifics-label" class="form-label">Honorifics</label>
+            <select class="form-control" id="honorifics" name="honorifics">
+              <option value="">-- Select --</option>
+            
+              <option value="Mr." <%= user.honorifics === "Mr." ? "selected" : "" %>>Mr.</option>
+              <option value="Mrs." <%= user.honorifics === "Mrs." ? "selected" : "" %>>Mrs.</option>
+              <option value="Ms." <%= user.honorifics === "Ms." ? "selected" : "" %>>Ms.</option>
+              <option value="Miss" <%= user.honorifics === "Miss" ? "selected" : "" %>>Miss</option>
+              <option value="Mx." <%= user.honorifics === "Mx." ? "selected" : "" %>>Mx.</option>
+            
+              <option value="Dr." <%= user.honorifics === "Dr." ? "selected" : "" %>>Dr.</option>
+              <option value="Prof." <%= user.honorifics === "Prof." ? "selected" : "" %>>Prof.</option>
+              <option value="Assoc. Prof." <%= user.honorifics === "Assoc. Prof." ? "selected" : "" %>>Assoc. Prof.</option>
+              <option value="Asst. Prof." <%= user.honorifics === "Asst. Prof." ? "selected" : "" %>>Asst. Prof.</option>
+              <option value="PhD" <%= user.honorifics === "PhD" ? "selected" : "" %>>PhD</option>
+            
+              <option value="Engr." <%= user.honorifics === "Engr." ? "selected" : "" %>>Engr.</option>
+              <option value="Atty." <%= user.honorifics === "Atty." ? "selected" : "" %>>Atty.</option>
+              <option value="Arch." <%= user.honorifics === "Arch." ? "selected" : "" %>>Arch.</option>
+              <option value="CPA" <%= user.honorifics === "CPA" ? "selected" : "" %>>CPA</option>
+              <option value="Hon." <%= user.honorifics === "Hon." ? "selected" : "" %>>Hon.</option>
+              <option value="Capt." <%= user.honorifics === "Capt." ? "selected" : "" %>>Capt.</option>
+              <option value="Chief" <%= user.honorifics === "Chief" ? "selected" : "" %>>Chief</option>
+              <option value="Sr." <%= user.honorifics === "Sr." ? "selected" : "" %>>Sr.</option>
+              <option value="Jr." <%= user.honorifics === "Jr." ? "selected" : "" %>>Jr.</option>
+            </select>
+            
           </div>
         </div>
 
         <div class="form-group">
-          <label for="researchFields" class="form-label">Research Fields</label>
+          <label for="researchFields" id="research-label" class="form-label">Research Fields</label>
           <input
             type="text"
             class="form-control"
             id="researchFields"
             name="researchFields"
-            placeholder="Enter your fields here..."
+            placeholder="Enter your research fields here..."
           />
         </div>
 
         <div class="form-group">
-          <label for="introduction" class="form-label">Introduction</label>
+          <label for="introduction" id="intro-label" class="form-label">Introduction</label>
           <textarea
             class="form-control description-field"
             name="introduction"
             id="introduction"
             placeholder="Write a brief introduction about yourself"
-            maxlength="1000"
+            maxlength="250"
           ></textarea>
         </div>
 
@@ -138,3 +161,4 @@
     </div>
   </div>
 </div>
+

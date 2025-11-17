@@ -8,13 +8,16 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
-    <link rel="icon" href="/images/temporary.jpg" />
+    <link rel="icon" href="/images/lpu_logo_icon.png" />
     <link rel="stylesheet" href="/styles/admin.css" />
     <link rel="stylesheet" href="/styles/admin/university-section.css" />
     <link rel="stylesheet" href="/styles/admin/employee-section.css" />
+    <link rel="stylesheet" href="/styles/admin/employee-archive-section.css" />
+    <link rel="stylesheet" href="/styles/admin/logs-section.css" />
     <link rel="stylesheet" href="/styles/admin/bcards-section.css" />
     <link rel="stylesheet" href="/styles/admin/admin-account-section.css" />
     <link rel="stylesheet" href="/styles/admin/markers-section.css" />
+    <link href="https://vjs.zencdn.net/8.22.0/video-js.css" rel="stylesheet" />
 
     <link
       rel="stylesheet"
@@ -23,16 +26,95 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   </head>
   <body>
+    <div class="change-newpass-container">
+      <div class="change-newpass-modal">
+        <div style="display: flex; justify-content: space-between">
+          <h1>Change your password</h1>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            height="40px"
+            viewBox="0 -960 960 960"
+            width="40px"
+            fill="#00000"
+            id="require-logout-btn"
+          >
+            <path
+              d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h280v80H200Zm440-160-55-58 102-102H360v-80h327L585-622l55-58 200 200-200 200Z"
+            />
+          </svg>
+        </div>
+        <p>
+          Your account has been created with a temporary password by the
+          administrator. For your security, please create a new password to
+          continue.
+        </p>
+        <div id="register-errors" class="register-errors alert alert-danger">
+          <div class="error-header">
+            <div class="error-header-left">
+              <i class="bi bi-exclamation-triangle-fill"></i>
+              Registration Failed!
+            </div>
+            <button
+              id="close-changepass-btn"
+              type="button"
+              class="btn-close btn-close-black btn-sm"
+              aria-label="Close"
+              style="display: none"
+            ></button>
+          </div>
+          <div class="error-body">
+            <ul id="register-errors-list" class="register-errors-list">
+              <!-- Error items will be inserted here dynamically -->
+            </ul>
+          </div>
+        </div>
+        <div class="change-newpass-content">
+          <form id="change-newpass-form" class="change-newpass-form">
+            <label for="current-password">Current Password:</label>
+            <input
+              type="password"
+              id="current-password"
+              name="current-password"
+              class="changepass-input"
+            />
+            <label for="current-password">New Password:</label>
+            <input type="password" id="new-password" class="changepass-input" />
+            <label for="current-password">Confirm New Password:</label>
+            <input
+              type="password"
+              id="confirm-new-password"
+              class="changepass-input"
+            />
+
+            <button id="submit-changepass-btn">Submit</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <div class="container">
-      <aside class="sidebar">
+      <!-- Mobile Toggle Button (Only visible on small screens) -->
+      <button class="mobile-toggle d-md-none" id="mobileToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <!-- Overlay for mobile -->
+      <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+      <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <div class="d-flex">
-            <img src="/images/temporary.jpg" alt="Logo" />
-            <span class="sidebar-title">ARCMS</span>
+            <img
+              src="/images/lpu_logo_horizontal.jpg"
+              height="76"
+              id="sidebarLogo"
+              alt="Logo"
+            />
+            <span class="sidebar-title"></span>
           </div>
-          <!-- <button class="sidebar-toggle" id="sidebarToggle">
+          <button class="sidebar-toggle d-none d-md-block" id="sidebarToggle">
             <i class="bi bi-chevron-left"></i>
-          </button> -->
+          </button>
         </div>
         <div class="user-info">
           <img
@@ -43,61 +125,94 @@
           />
           <div>
             <div class="user-name" id="admin-name"></div>
-            <div class="user-role" id="admin-email"></div>
           </div>
         </div>
+        <div
+          class="user-role"
+          style="text-align: center"
+          id="admin-email"
+        ></div>
         <nav>
           <h3>Main Menu</h3>
           <ul>
-            <!-- <li><a href="#" id="dashboard-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li> -->
+            <% if (admin.admin_type === "center_for_public_affairs") { %>
+            <!-- University Content Tab -->
             <li>
-              <a href="#" id="members-link" class="sidebar-active"
-                ><i class="fas fa-users"></i> Members</a
+              <a
+                href="#"
+                id="university-link"
+                class="<%= admin.admin_type === 'center_for_public_affairs' ? 'sidebar-active' : '' %>"
               >
+                <i class="fas fa-university"></i>
+                <span>University Contents</span>
+              </a>
             </li>
-            <!-- <li><a href="#" id="analytics-link"><i class="fas fa-chart-bar"></i> Analytics</a></li> -->
+
+            <!-- University Management Tab -->
             <li>
-              <a href="#" id="university-link"
-                ><i class="fas fa-university"></i> University Contents</a
+              <a href="#" id="university-management-link">
+                <i class="fas fa-cogs"></i> <span>University Management</span>
+              </a>
+            </li>
+            <% } else { %>
+            <!-- Employee Tab -->
+            <li>
+              <a
+                href="#"
+                id="members-link"
+                class="<%= admin.admin_type === 'human_resources' ? 'sidebar-active' : '' %>"
               >
+                <i class="fas fa-users"></i> <span>Employees</span>
+              </a>
+            </li>
+
+            <!-- Employee Archive Tab -->
+            <li>
+              <a href="#" id="archive-link">
+                <i class="fas fa-box-archive"></i>
+                <span>Employees Archive</span>
+              </a>
+            </li>
+
+            <!-- Logs Tab -->
+            <li>
+              <a href="#" id="logs-link">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Logs</span>
+              </a>
+            </li>
+
+            <!-- Business Cards Tab -->
+            <li>
+              <a href="#" id="markers-link">
+                <i class="fas fa-id-card"></i> <span>Business Cards</span>
+              </a>
             </li>
             <li>
-              <a href="#" id="university-management-link"
-                ><i class="fas fa-cogs"></i> University Management</a
-              >
+              <a href="#" id="bcards-link">
+                <i class="fas fa-bolt"></i> <span>Generate Business Cards</span>
+              </a>
             </li>
+            <% } %>
+
             <li>
-              <a href="#" id="markers-link"
-                ><i class="fas fa-crosshairs"></i>Markers</a
-              >
-            </li>
-            <li>
-              <a href="#" id="bcards-link"
-                ><i class="fas fa-id-card"></i>Business Cards</a
-              >
-            </li>
-            <li>
-              <a href="#" id="admin-account-link"
-                ><i class="fas fa-gear"></i>My Account</a
-              >
+              <a href="#" id="admin-account-link">
+                <i class="fas fa-gear"></i> <span>My Account</span>
+              </a>
             </li>
           </ul>
-          <!-- <h3>Settings</h3>
-                <ul>
-                    <li><a href="#"><i class="fas fa-cog"></i> General Settings</a></li>
-                    <li><a href="#"><i class="fas fa-user-cog"></i> Account Settings</a></li>
-                    <li><a href="#"><i class="fas fa-bell"></i> Notifications</a></li>
-                </ul> -->
         </nav>
         <div class="logout">
           <a
             class="btn btn-primary"
-            href="/arcms/api/v1/auth/admin/logout"
+            href="#"
+            id="admin-logout-btn"
             style="text-decoration: none"
-            ><span class="logout-side text-white" style="color: white">
-              <i class="fas fa-sign-out-alt"></i>Log out</span
-            ></a
           >
+            <span class="logout-side text-white" style="color: white">
+              <i class="fas fa-sign-out-alt"></i> <span>Log out</span>
+            </span>
+          </a>
         </div>
       </aside>
       <div class="message-div success-message">
@@ -118,6 +233,8 @@
       <main>
         <!-- UNIVERSITY CONTENTS SECTION -->
         <%- include('./components/employees-section.ejs')%> <%-
+        include('./components/employee-archive-section.ejs')%> <%-
+        include('./components/logs-section.ejs')%> <%-
         include('./components/university-section.ejs')%> <%-
         include('./components/university-content-section.ejs')%> <%-
         include('./components/markers-section.ejs')%> <%-
@@ -127,10 +244,145 @@
     </div>
 
     <script>
+      window.adminType = "<%= admin.admin_type %>";
       const adminName = document.getElementById("admin-name");
       const adminRole = document.getElementById("admin-email");
       const adminImage = document.getElementById("admin-image");
+      const requireLogoutBtn = document.getElementById("require-logout-btn");
+      const adminLogoutBtn = document.getElementById("admin-logout-btn");
+      const registerErrors = document.getElementById("register-errors");
+      const changeNewPassOverlay = document.querySelector(
+        ".change-newpass-container"
+      );
+      const registerErrorsList = document.getElementById(
+        "register-errors-list"
+      );
+      const closeChangepassBtn = document.getElementById(
+        "close-changepass-btn"
+      );
+      const requireChangepassForm = document.getElementById(
+        "change-newpass-form"
+      );
+
+      const submitChangepassBtn = document.getElementById(
+        "submit-changepass-btn"
+      );
+
+      const changePassInputs = document.querySelectorAll(".changepass-input");
+
       window.adminImageElement = adminImage;
+
+      adminUsesTemp();
+
+      document.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+      });
+
+      closeChangepassBtn.addEventListener("click", (e) => {
+        registerErrors.style.display = "none";
+      });
+
+      requireChangepassForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        registerErrorsList.innerHTML = "";
+        changePassInputs.forEach((input) => {
+          input.disabled = true;
+        });
+        const form = e.target;
+        submitChangepassBtn.textContent = "Changing Password...";
+        // Get the inputs
+        const data = {
+          currentPassword: form["current-password"].value,
+          newPassword: form["new-password"].value,
+          passwordConfirm: form["confirm-new-password"].value,
+        };
+
+        // Send request
+        try {
+          const response = await fetch("/arcms/api/v1/admin/thisPassword", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              currentPassword: form["current-password"].value,
+              newPassword: form["new-password"].value,
+              passwordConfirm: form["confirm-new-password"].value,
+            }),
+          });
+
+          // Convert response to json
+          const responseData = await response.json();
+
+          // If failed, show the errors
+          if (!response.ok) {
+            registerErrors.style.display = "block";
+
+            responseData.errors.forEach((error) => {
+              const li = document.createElement("li");
+              li.textContent = error;
+              registerErrorsList.appendChild(li);
+            });
+          }
+          // If successful, hide the overlay
+          else {
+            alert("Password successfully changed!");
+            changeNewPassOverlay.style.display = "none";
+          }
+        } catch (error) {
+          console.log("Error changing password:", error);
+        }
+
+        submitChangepassBtn.textContent = "Submit";
+        changePassInputs.forEach((input) => {
+          input.disabled = false;
+        });
+      });
+
+      requireLogoutBtn.addEventListener("click", (e) => {
+        logout();
+      });
+      adminLogoutBtn.addEventListener("click", (e) => {
+        logout();
+      });
+
+      async function adminUsesTemp() {
+        try {
+          const response = await fetch("/arcms/api/v1/admin/uses-temp");
+
+          if (!response.ok) {
+            console.error(
+              "Failed to fetch data:",
+              response.status,
+              response.statusText
+            );
+          } else {
+            const responseData = await response.json();
+            console.log("USES TEMP RESPONSE:", responseData);
+            if (responseData.password_is_temp) {
+              changeNewPassOverlay.style.display = "flex";
+            }
+          }
+        } catch (err) {
+          console.log("error:", err);
+        }
+      }
+
+      async function logout() {
+        try {
+          const response = await fetch("/arcms/api/v1/auth/admin/logout", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (data.redirect) {
+            window.location.href = data.redirect;
+          }
+        } catch (error) {
+          console.error("Logout error:", error);
+        }
+      }
 
       async function getCurrentAdmin() {
         try {
@@ -152,16 +404,109 @@
       }
       getCurrentAdmin().then((currentAdmin) => {
         console.log("Current Admin:", currentAdmin);
+
         adminName.textContent = currentAdmin.data.admin_name;
         adminRole.textContent = currentAdmin.data.email;
-        adminImage.src = currentAdmin.imageUrl;
+        adminImage.src = currentAdmin?.imageUrl;
         window.currentAvatar = currentAdmin.imageUrl;
       });
+
+      //Siebdar
+      // Add this to your admin-script.js or create a new script file
+
+      // Improved sidebar toggle functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        // Get elements
+        const sidebar = document.getElementById("sidebar");
+        const sidebarToggle = document.getElementById("sidebarToggle");
+        const mobileToggle = document.getElementById("mobileToggle");
+        const overlay = document.getElementById("sidebarOverlay");
+
+        // Function to check if we're on mobile view
+        function isMobileView() {
+          return window.innerWidth < 992; // Bootstrap lg breakpoint
+        }
+
+        // Desktop sidebar toggle (collapse/expand)
+        if (sidebarToggle) {
+          sidebarToggle.addEventListener("click", function () {
+            sidebar.classList.toggle("collapsed");
+
+            // Update toggle icon
+            const icon = this.querySelector("i");
+            if (sidebar.classList.contains("collapsed")) {
+              icon.classList.remove("bi-chevron-left");
+              icon.classList.add("bi-chevron-right");
+            } else {
+              icon.classList.remove("bi-chevron-right");
+              icon.classList.add("bi-chevron-left");
+            }
+
+            // Toggle sidebar logo
+            const logo = document.getElementById("sidebarLogo");
+            if (sidebar.classList.contains("collapsed")) {
+              logo.src = "/images/lpu_logo_icon.png"; // smaller or square logo
+              logo.height = 35;
+            } else {
+              logo.src = "/images/lpu_logo_horizontal.jpg"; // original horizontal logo
+              logo.height = 76; // restore size
+            }
+          });
+        }
+
+        // Mobile sidebar toggle (show/hide)
+        if (mobileToggle) {
+          mobileToggle.addEventListener("click", function () {
+            sidebar.classList.toggle("mobile-open");
+            overlay.classList.toggle("active");
+
+            // Prevent body scrolling when sidebar is open
+            if (sidebar.classList.contains("mobile-open")) {
+              document.body.style.overflow = "hidden";
+            } else {
+              document.body.style.overflow = "";
+            }
+          });
+        }
+
+        // Close sidebar when clicking overlay
+        if (overlay) {
+          overlay.addEventListener("click", function () {
+            sidebar.classList.remove("mobile-open");
+            overlay.classList.remove("active");
+            document.body.style.overflow = "";
+          });
+        }
+
+        // Close sidebar when clicking a nav link on mobile
+        const navLinks = document.querySelectorAll(".sidebar nav a");
+        navLinks.forEach(function (link) {
+          link.addEventListener("click", function () {
+            if (isMobileView() && sidebar.classList.contains("mobile-open")) {
+              sidebar.classList.remove("mobile-open");
+              overlay.classList.remove("active");
+              document.body.style.overflow = "";
+            }
+          });
+        });
+
+        // Handle window resize
+        window.addEventListener("resize", function () {
+          if (!isMobileView() && sidebar.classList.contains("mobile-open")) {
+            sidebar.classList.remove("mobile-open");
+            overlay.classList.remove("active");
+            document.body.style.overflow = "";
+          }
+        });
+      });
     </script>
+    <script src="https://vjs.zencdn.net/8.22.0/video.min.js"></script>
     <script src="/scripts/markers-section.js"></script>
     <script src="/scripts/bcard-section.js"></script>
     <script src="/scripts/admin-account-section.js"></script>
     <script src="/scripts/employees-section.js"></script>
+    <script src="/scripts/employee-archive-section.js"></script>
+    <script src="/scripts/logs-section.js"></script>
     <script src="/scripts/university-section.js"></script>
     <script src="/scripts/events.js"></script>
     <script src="/scripts/admin-script.js"></script>

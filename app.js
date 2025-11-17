@@ -12,6 +12,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const eventRoutes = require("./routes/eventRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
+const collegeRoutes = require("./routes/collegeRoutes");
 const achievementRoutes = require("./routes/achievementRoutes");
 const faqRoutes = require("./routes/faqRoutes");
 const organizationRoutes = require("./routes/organizationRoutes");
@@ -19,9 +20,10 @@ const contactRoutes = require("./routes/contactRoutes");
 const scheduleRoutes = require("./routes/scheduleRoutes");
 const bcardRoutes = require("./routes/bcardContentRoutes");
 const bcardBgRoutes = require("./routes/bcardBgRoutes");
+const logRoutes = require("./routes/logRoutes");
 const vuforiaRouter = require("./routes/vuforiaRoutes");
 const awardRouter = require("./routes/awardRoutes");
-
+const videoRouter = require("./routes/videoRoutes");
 const viewController = require("./controllers/viewController");
 
 // TRY TO IMPLEMENT REDIS
@@ -70,12 +72,14 @@ app.use("/upload", uploadRoutes);
 app.use("/lpu", lpuRoutes);
 app.use("/events", eventRoutes);
 
+app.use("/arcms/api/v1/videos", videoRouter);
 app.use("/arcms/api/v1/awards", awardRouter);
 app.use("/arcms/api/v1/vuforia", vuforiaRouter);
 app.use("/arcms/api/v1/admin", adminRoutes);
 app.use("/arcms/api/v1/auth", authRoutes);
 app.use("/arcms/api/v1/employees", employeeRoutes);
 app.use("/arcms/api/v1/departments", departmentRoutes);
+app.use("/arcms/api/v1/colleges", collegeRoutes);
 app.use("/arcms/api/v1/achievements", achievementRoutes);
 app.use("/arcms/api/v1/faqs", faqRoutes);
 app.use("/arcms/api/v1/organizations", organizationRoutes);
@@ -83,6 +87,7 @@ app.use("/arcms/api/v1/contacts", contactRoutes);
 app.use("/arcms/api/v1/schedule", scheduleRoutes);
 app.use("/arcms/api/v1/bcardContents", bcardRoutes);
 app.use("/arcms/api/v1/bcardBg", bcardBgRoutes);
+app.use("/arcms/api/v1/logs", logRoutes);
 
 // 404 page
 

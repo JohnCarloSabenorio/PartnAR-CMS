@@ -5,7 +5,7 @@ const bcrypt = require("bcrypt"); // For password hashing
 class Employee {
   // Private properties
   #password;
-  #email;
+  email;
 
   constructor(employeeData) {
     // Public fields
@@ -18,17 +18,26 @@ class Employee {
     this.introduction = employeeData.introduction;
     this.image_id = employeeData.image_id;
     this.position = employeeData.position;
+    this.employee_number = employeeData.employee_number;
     this.department_id = employeeData.department_id;
     this.date_created = employeeData.date_created;
     this.isActive = employeeData.isActive;
+    this.isApproved = employeeData.isApproved;
+    this.introIsEdited = employeeData.introIsEdited;
+    this.fieldIsEdited = employeeData.fieldIsEdited;
+    this.honorIsEdited = employeeData.honorIsEdited;
+    this.oldHonorifics = employeeData.newHonorifics;
+    this.oldField = employeeData.newField;
+    this.oldIntroduction = employeeData.newIntroduction;
+    this.isArchived = employeeData.isArchived;
     // Private fields
     this.#password = employeeData.password;
-    this.#email = employeeData.email;
+    this.email = employeeData.email;
   }
 
   // Public Getter for email
   getEmail() {
-    return this.#email;
+    return this.email;
   }
 
   // Private Getter for password
@@ -125,7 +134,7 @@ class Employee {
     try {
       const { data, error } = await supabase
         .from("employee")
-        .update({ password: newPassword })
+        .update({ password: newPassword, password_is_temp: false })
         .eq("employee_id", employee_id);
 
       if (error) {
@@ -139,6 +148,43 @@ class Employee {
     }
   }
 
+  static async updatePosition(employee_id, position) {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .update({ position: position })
+        .eq("employee_id", employee_id);
+
+      if (error) {
+        throw new Error(`Failed to update employee position: ${error.message}`);
+      }
+
+      return data;
+    } catch (error) {
+      console.error(error.message);
+      throw error;
+    }
+  }
+
+  static async updateDepartment(employee_id, department_id) {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .update({ department_id: department_id })
+        .eq("employee_id", employee_id);
+
+      if (error) {
+        throw new Error(
+          `Failed to update employee department: ${error.message}`
+        );
+      }
+
+      return data;
+    } catch (error) {
+      console.error(error.message);
+      throw error;
+    }
+  }
   // Create a new employee
   static async create(employeeData) {
     try {
@@ -182,7 +228,7 @@ class Employee {
       const { data, error } = await supabase
         .from("employee")
         .select(
-          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created"
+          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, employee_number"
         );
 
       if (error) {
@@ -200,9 +246,34 @@ class Employee {
       const { data, error } = await supabase
         .from("employee")
         .select(
-          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, isActive, position"
+          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, isActive, position, employee_number, department_id"
         )
-        .eq("isActive", true);
+        .eq("isApproved", true)
+        .eq("is_archived", false)
+        .order("employee_number", { ascending: true });
+
+      console.log("ALL ACTIVE MEMBERS: ", data);
+
+      if (error) {
+        throw new Error(`Failed to list employees: ${error.message}`);
+      }
+
+      return data.map((empData) => new Employee(empData)); // Return array of Employee instances
+    } catch (err) {
+      console.error(err.message);
+      throw err;
+    }
+  }
+
+  static async getArchivedEmployees() {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .select(
+          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, isActive, employee_number"
+        )
+        .eq("is_archived", true)
+        .order("employee_number", { ascending: true });
 
       console.log("ALL ACTIVE MEMBERS: ", data);
 
@@ -239,14 +310,60 @@ class Employee {
     }
   }
 
+  static async unarchiveEmployee(employee_id) {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .update({
+          isActive: true,
+          is_archived: false,
+        })
+        .eq("employee_id", employee_id);
+
+      if (error) {
+        console.error("Failed to unarchive user.");
+      } else {
+        console.log("User unarchived!");
+      }
+
+      return data;
+    } catch (err) {
+      console.error(err.message);
+      throw err;
+    }
+  }
+
+  static async archiveEmployee(employee_id) {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .update({
+          isActive: false,
+          is_archived: true,
+        })
+        .eq("employee_id", employee_id);
+
+      if (error) {
+        console.error("Failed to archive user.");
+      } else {
+        console.log("User archived!");
+      }
+
+      return data;
+    } catch (err) {
+      console.error(err.message);
+      throw err;
+    }
+  }
+
   static async getInactiveEmployees() {
     try {
       const { data, error } = await supabase
         .from("employee")
         .select(
-          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, isActive"
+          "employee_id, first_name, middle_name, last_name, email, honorifics, image_id, date_created, isActive, employee_number"
         )
-        .eq("isActive", false);
+        .eq("isApproved", false);
 
       console.log("ALL ACTIVE MEMBERS: ", data);
 
@@ -282,12 +399,33 @@ class Employee {
     }
   }
 
+  // Find employee by employee number
+  static async findByEmployeeNumber(employee_number) {
+    try {
+      const { data, error } = await supabase
+        .from("employee")
+        .select("*")
+        .eq("employee_number", employee_number)
+        .single(); // Ensure we get a single record
+
+      if (error) {
+        throw new Error(
+          `Failed to retrieve employee by employee_number: ${error.message}`
+        );
+      }
+      return new Employee(data); // Return the Employee instance
+    } catch (err) {
+      console.error(err.message);
+      return null; // Return null if employee not found
+    }
+  }
+
   // Retrieve data for overview page
   static async getOverviewData(employee_id) {
     try {
       const { data, error } = await supabase
         .from("employee")
-        .select("introduction, field, position, image_id")
+        .select("*")
         .eq("employee_id", employee_id)
         .single(); // Ensure we get a single record
 

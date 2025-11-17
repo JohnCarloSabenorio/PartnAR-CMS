@@ -3,17 +3,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   const contents = await getAllContents();
   let bcardCanvas = document.getElementById("canvas");
   let bcardCtx = bcardCanvas.getContext("2d");
+
   const contextMenu = document.getElementById("contextMenu");
   const applyBtn = document.getElementById("apply-btn");
   const textOptionsDiv = document.getElementById("text-options");
   const saveBgBtn = document.getElementById("save-bg-btn");
   const fileInput = document.getElementById("bcard-bg");
   const downloadBcardBtn = document.getElementById("download-bcard");
-  const deleteBtn = document.getElementById("delete-text-btn");
+  // const deleteBtn = document.getElementById("delete-text-btn");
   const clearBtn = document.getElementById("clear-btn");
   const highlightNameBtn = document.getElementById("highlight-name-btn");
+  const highlightEmpNumberBtn = document.getElementById(
+    "highlight-empnumber-btn"
+  );
   const genAndReplaceBtn = document.getElementById("generate-bcard-btn");
   const allBusinessCards = await getAllBusinessCards();
+
+  const fontInput = document.getElementById("text-font");
+  const alignmentInput = document.getElementById("textAlignment");
+  // const baselineInput = document.getElementById("textBaseline");
+  const scaleInput = document.getElementById("scaleFactor");
+  const fontSizeInput = document.getElementById("fontSize");
+  const fontWeightInput = document.getElementById("fontWeight");
+  const colorInput = document.getElementById("color");
 
   console.log("ALL ACTIVE IMAGE TARGETS:", allBusinessCards);
   let fileToSave = null;
@@ -48,14 +60,52 @@ document.addEventListener("DOMContentLoaded", async () => {
   setBackgroundFromURL(background_url);
   // EVENT LISTENERS
 
-  highlightNameBtn.addEventListener("click", async (e) => {
+  function centerText(text) {
+    const canvasWidth = bcardCanvas.width;
+    const canvasHeight = bcardCanvas.height;
+
     for (let i = 0; i < texts.length; i++) {
-      if (texts[i].text.toLowerCase() === "name") {
-        texts[i].x = 384;
-        texts[i].y = 225;
+      if (texts[i].text.toLowerCase() === text.toLowerCase()) {
+        const fontSize = texts[i].font_size || 16;
+        const fontFamily = texts[i].font_family || "Arial";
+        const textAlign = texts[i].align || "left";
+
+        bcardCtx.font = `${fontSize}px ${fontFamily}`; // set font for measurement
+        const textWidth = bcardCtx.measureText(texts[i].text).width;
+
+        // Calculate x based on alignment
+        let x;
+        switch (textAlign) {
+          case "center":
+            x = canvasWidth / 2;
+            break;
+          case "right":
+            x = canvasWidth - (canvasWidth - textWidth) / 2;
+            break;
+          case "left":
+          default:
+            x = (canvasWidth - textWidth) / 2;
+            break;
+        }
+
+        texts[i].x = x;
+        texts[i].y = canvasHeight / 2; // middle vertically
+        texts[i].align = textAlign;
         break;
       }
     }
+  }
+
+  highlightNameBtn.addEventListener("click", async (e) => {
+    centerText("name");
+    // deleteBtn.style.display = "block";
+    draw();
+  });
+
+  highlightEmpNumberBtn.addEventListener("click", async (e) => {
+    centerText("employee number");
+
+    // deleteBtn.style.display = "block";
 
     draw();
   });
@@ -82,6 +132,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveBgBtn.style.display = "inline-block";
     fileToSave = fileInput.files[0];
 
+    const allowedTypes = ["image/jpeg", "image/png"];
+
+    if (!allowedTypes.includes(fileToSave.type)) {
+      showErrorMessage("Only JPG and PNG images are allowed.");
+      event.target.value = ""; // Clear the selected file
+      return;
+    }
+
     if (fileToSave) {
       const imageUrl = URL.createObjectURL(fileToSave);
       setBackgroundFromURL(imageUrl);
@@ -102,24 +160,170 @@ document.addEventListener("DOMContentLoaded", async () => {
     saveBgBtn.style.display = "none";
   });
 
-  applyBtn.addEventListener("click", (e) => {
+  fontInput.addEventListener("change", async (e) => {
     if (textToEdit < 0) {
       showErrorMessage("Please select a text to edit.");
+      return; // ⬅️ prevent proceeding further
     }
-    editText(textToEdit);
+
+    if (textToEdit === -1) {
+      return;
+    }
+
+    // Show an error message if any values are missing
+    if (!fontInput.value) {
+      return;
+    }
+
+    texts[textToEdit].font_family = fontInput.value;
+
+    await updateContent({
+      content_id: texts[textToEdit].content_id,
+      font_family: texts[textToEdit].font_family,
+    });
+
     draw();
   });
 
-  deleteBtn.addEventListener("click", async (e) => {
-    if (textToEdit !== -1) {
-      deleteContent(texts[textToEdit].content_id);
-      texts.splice(textToEdit, 1);
-      textToEdit = -1;
-      selectedText = -1;
-      draw();
-      contextMenu.style.display = "none";
+  alignmentInput.addEventListener("change", async (e) => {
+    if (textToEdit < 0) {
+      showErrorMessage("Please select a text to edit.");
+      return; // ⬅️ prevent proceeding further
     }
+
+    if (textToEdit === -1) {
+      return;
+    }
+
+    // Show an error message if any values are missing
+    if (!alignmentInput.value) {
+      return;
+    }
+
+    texts[textToEdit].align = alignmentInput.value;
+
+    await updateContent({
+      content_id: texts[textToEdit].content_id,
+      align: texts[textToEdit].align,
+    });
+
+    draw();
   });
+  // baselineInput.addEventListener("change", async (e) => {
+  //   if (textToEdit < 0) {
+  //     showErrorMessage("Please select a text to edit.");
+  //     return; // ⬅️ prevent proceeding further
+  //   }
+
+  //   if (textToEdit === -1) {
+  //     return;
+  //   }
+
+  //   // Show an error message if any values are missing
+  //   if (!baselineInput.value) {
+  //     return;
+  //   }
+
+  //   texts[textToEdit].baseline = baselineInput.value;
+
+  //   await updateContent({
+  //     content_id: texts[textToEdit].content_id,
+  //     baseline: texts[textToEdit].baseline,
+  //   });
+
+  //   draw();
+  // });
+
+  fontSizeInput.addEventListener("change", async (e) => {
+    if (textToEdit < 0) {
+      showErrorMessage("Please select a text to edit.");
+      return; // ⬅️ prevent proceeding further
+    }
+
+    if (textToEdit === -1) {
+      return;
+    }
+
+    if (fontSizeInput.value < 16) {
+      fontSizeInput.value = 16;
+    }
+
+    texts[textToEdit].font_size = fontSizeInput.value;
+
+    await updateContent({
+      content_id: texts[textToEdit].content_id,
+      font_size: texts[textToEdit].font_size,
+    });
+
+    draw();
+  });
+
+  fontWeightInput.addEventListener("change", async (e) => {
+    if (textToEdit < 0) {
+      showErrorMessage("Please select a text to edit.");
+      return; // ⬅️ prevent proceeding further
+    }
+
+    if (textToEdit === -1) {
+      return;
+    }
+
+    if (!fontWeightInput.value || fontWeightInput.value < 100) {
+      fontWeightInput.value = 100;
+    }
+
+    texts[textToEdit].font_weight = fontWeightInput.value;
+
+    await updateContent({
+      content_id: texts[textToEdit].content_id,
+
+      font_weight: texts[textToEdit].font_weight,
+    });
+
+    draw();
+  });
+  colorInput.addEventListener("change", async (e) => {
+    if (textToEdit < 0) {
+      showErrorMessage("Please select a text to edit.");
+      return; // ⬅️ prevent proceeding further
+    }
+
+    if (textToEdit === -1) {
+      return;
+    }
+
+    if (!colorInput.value) {
+      colorIn.value = "#000000";
+    }
+
+    texts[textToEdit].color = colorInput.value;
+
+    await updateContent({
+      content_id: texts[textToEdit].content_id,
+      color: texts[textToEdit].color,
+    });
+
+    draw();
+  });
+
+  // applyBtn.addEventListener("click", (e) => {
+  //   if (textToEdit < 0) {
+  //     showErrorMessage("Please select a text to edit.");
+  //   }
+  //   editText(textToEdit);
+  //   draw();
+  // });
+
+  // deleteBtn.addEventListener("click", async (e) => {
+  //   if (textToEdit !== -1) {
+  //     deleteContent(texts[textToEdit].content_id);
+  //     texts.splice(textToEdit, 1);
+  //     textToEdit = -1;
+  //     selectedText = -1;
+  //     draw();
+  //     contextMenu.style.display = "none";
+  //   }
+  // });
 
   // Add event listeners
   $canvas.on("mousedown", handleMouseDown);
@@ -203,7 +407,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // clear the canvas & redraw all texts
-  function draw() {
+  function draw(isGenerating) {
     bcardCtx.clearRect(0, 0, bcardCanvas.width, bcardCanvas.height);
     console.log("CANVAS CLEARED!");
     if (backgroundImage) {
@@ -218,52 +422,89 @@ document.addEventListener("DOMContentLoaded", async () => {
       );
     }
 
-    drawText(); // Draw the text on top of the image
+    drawText(isGenerating); // Draw the text on top of the image
   }
 
-  function drawText() {
+  function drawText(isGenerating) {
     console.log("TEXTS:", texts);
     for (let i = 0; i < texts.length; i++) {
       bcardCtx.save();
 
       if (!texts[i].is_displayed) {
+        bcardCtx.restore();
         continue;
       }
 
+      // Set font and style early for correct measurement
+      bcardCtx.font = `${texts[i].font_weight} ${texts[i].font_size}px ${texts[i].font_family}`;
+      bcardCtx.fillStyle = texts[i].color;
+      bcardCtx.textAlign = texts[i].align || "left";
+      // Do not set textBaseline — use default ("alphabetic")
+
+      // Measure text size
+      texts[i].width = bcardCtx.measureText(texts[i].text).width;
+      texts[i].height = texts[i].font_size * texts[i].scale_factor;
+
+      // Adjust X position for alignment
+      let x = texts[i].x;
+      if (bcardCtx.textAlign === "center") {
+        x -= texts[i].width / 2;
+      } else if (
+        bcardCtx.textAlign === "right" ||
+        bcardCtx.textAlign === "end"
+      ) {
+        x -= texts[i].width;
+      }
+
+      // Adjust Y position for baseline (alphabetic baseline)
+      let y = texts[i].y - texts[i].height * 0.8;
+
+      // Draw selection rectangle for selected text
       if (i === selectedText) {
         console.log("THE SELECTED TEXT:", i);
         bcardCtx.strokeStyle = "red";
         bcardCtx.lineWidth = 2;
+        const padding = 5;
+
+        // Draw bounding box around the text
         bcardCtx.strokeRect(
-          texts[i].x - 5,
-          texts[i].y - texts[i].height,
-          texts[i].width + 10,
-          texts[i].height + 5
+          x - padding, // adjusted X based on alignment
+          y - padding, // adjusted Y based on text height
+          texts[i].width + padding * 2, // width of the bounding box
+          texts[i].height + padding * 2 // height of the bounding box
         );
       }
 
-      bcardCtx.font = `${texts[i].font_weight} ${texts[i].font_size}px ${texts[i].font_family}`;
-
-      texts[i].width = bcardCtx.measureText(texts[i].text).width;
-      texts[i].height = texts[i].font_size * texts[i].scale_factor;
-      bcardCtx.fillStyle = texts[i].color;
-
+      // Draw the text at its original position
       bcardCtx.fillText(texts[i].text, texts[i].x, texts[i].y);
+
       bcardCtx.restore();
     }
   }
 
   // test if x,y is inside the bounding box of a text
-  function textHittest(x, y, textIndex) {
-    let text = texts[textIndex];
+  function textHittest(x, y, index) {
+    const text = texts[index];
+
+    // Calculate the adjusted X based on the alignment
+    let adjustedX = text.x;
+    if (text.align === "center") {
+      adjustedX -= text.width / 2;
+    } else if (text.align === "right" || text.align === "end") {
+      adjustedX -= text.width;
+    }
+
+    // Calculate the adjusted Y based on the baseline
+    let adjustedY = text.y - text.height * 0.8;
+
+    // Check if the mouse is within the bounds of the text box
     return (
-      x >= text.x &&
-      x <= text.x + text.width &&
-      y >= text.y - text.height &&
-      y <= text.y
+      x >= adjustedX &&
+      x <= adjustedX + text.width &&
+      y >= adjustedY &&
+      y <= adjustedY + text.height
     );
   }
-
   // This will handle the update of the font options of a selected text
   function resetTextOptions() {
     textToEdit = -1;
@@ -271,14 +512,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     contextMenu.style.display = "none";
 
     const textInput = document.getElementById("text-content");
-    const fontInput = document.getElementById("text-font");
-    const scaleInput = document.getElementById("scaleFactor");
-    const fontSizeInput = document.getElementById("fontSize");
-    const fontWeightInput = document.getElementById("fontWeight");
-    const colorInput = document.getElementById("color");
 
     textInput.disabled = true;
     fontInput.disabled = true;
+    alignmentInput.disabled = true;
+    // baselineInput.disabled = true;
     scaleInput.disabled = true;
     fontSizeInput.disabled = true;
     fontWeightInput.disabled = true;
@@ -292,27 +530,29 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function updateTextOptions(idx) {
     const textInput = document.getElementById("text-content");
-    const fontInput = document.getElementById("text-font");
-    const scaleInput = document.getElementById("scaleFactor");
-    const fontSizeInput = document.getElementById("fontSize");
-    const fontWeightInput = document.getElementById("fontWeight");
-    const colorInput = document.getElementById("color");
 
     fontInput.disabled = false;
     scaleInput.disabled = false;
+    alignmentInput.disabled = false;
+    // baselineInput.disabled = false;
     fontSizeInput.disabled = false;
     fontWeightInput.disabled = false;
     colorInput.disabled = false;
     textInput.value = texts[idx].text;
     colorInput.value = texts[idx].color;
-    if (textInput.value.toLowerCase() === "name") {
+    if (
+      textInput.value.toLowerCase() === "name" ||
+      textInput.value.toLowerCase() === "employee number"
+    ) {
       textInput.disabled = true;
     } else {
-      contextMenu.style.display = "block";
+      // contextMenu.style.display = "block";
       textInput.disabled = false;
     }
     fontInput.value = texts[idx].font_family;
     fontSizeInput.value = texts[idx].font_size;
+    alignmentInput.value = texts[idx].align;
+    // baselineInput.value = texts[idx].baseline;
     fontWeightInput.value = texts[idx].font_weight;
     colorInput.value = texts[idx].color;
   }
@@ -323,15 +563,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     const textInput = document.getElementById("text-content");
-    const fontInput = document.getElementById("text-font");
-    const fontSizeInput = document.getElementById("fontSize");
-    const fontWeightInput = document.getElementById("fontWeight");
-    const colorInput = document.getElementById("color");
 
     // Show an error message if any values are missing
     if (
       !textInput.value ||
       !fontInput.value ||
+      !alignmentInput.value ||
       !fontSizeInput.value ||
       !fontWeightInput.value ||
       !colorInput.value
@@ -345,6 +582,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     texts[idx].text = textInput.value;
     texts[idx].font_family = fontInput.value;
+    texts[idx].align = alignmentInput.value;
+    // texts[idx].baseline = baselineInput.value;
     texts[idx].font_size = fontSizeInput.value;
     texts[idx].font_weight = fontWeightInput.value;
     texts[idx].color = colorInput.value;
@@ -405,9 +644,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     text.x += dx;
     text.y += dy;
 
+    // ❌ Remove auto-alignment here (or make it optional with a key toggle)
+    // text.align = ...
+    // text.baseline = ...
+
     draw();
   }
-
   // handle mouseup events (deselect text)
   function handleMouseUp(e) {
     e.preventDefault();
@@ -484,6 +726,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.log("BG URL RETRIEVED!", responseData.data.image_url);
 
       showSuccessMessage("Business card background updated successfully!");
+      saveBgBtn.textContent = "Save";
+
       saveBgBtn.textContent = "Save Background";
       return responseData.data.image_url;
     } catch (err) {
@@ -606,11 +850,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       const { employeesList } = await response.json();
 
-      activeEmployees = employeesList;
+      logs = employeesList;
 
-      console.log("ALL ACTIVE EMPLOYEES IN THE SYSTEM:", activeEmployees);
+      console.log("ALL ACTIVE EMPLOYEES IN THE SYSTEM:", logs);
 
-      return activeEmployees;
+      return logs;
     } catch (error) {
       console.error("Error fetching employees:", error);
     }
@@ -667,14 +911,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (data.error?.result_code === "TargetStatusNotSuccess") {
         console.log("THE EMPLOYEE:", employee);
-        showErrorMessage(
-          `${employee.last_name}'s business card is still processing! Please try again later.`
-        );
+        replaceTargetErrors += 1;
       }
 
       console.log("UPDATE RESPONSE:", data);
     } catch (err) {
-      console.log("FAIELD TO UPDATE BUSINESS CARD DATA:", err);
+      showErrorMessage("FAILED TO UPDATE BUSINESS CARD DATA:", err);
     }
   }
 
@@ -690,7 +932,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         LastName: theEmployee.last_name,
       };
 
-      formData.append("name", `${theEmployee.last_name} Business Card`);
+      formData.append("name", `${theEmployee.employee_number}`);
       formData.append("width", 6);
       formData.append("active_flag", true);
       formData.append("bucket", "assets/targetImages");
@@ -717,6 +959,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.log("NEW TARGET DATA OF EMPLOYEE:", data);
 
       if (response.status === 400) {
+        createTargetErrors += 1;
         return showErrorMessage(
           "Failed to add a new target! Please use another image or try again later."
         );
@@ -908,8 +1151,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   //   if (targetPositionText) targetPositionText.text = "Position";
   //   if (targetNumberText) targetNumberText.text = "Phone Number";
 
-  //   location.reload();
   // }
+
+  const replaceTargetErrors = 0;
+  const createTargetErrors = 0;
 
   async function generateAndReplaceTargets() {
     // 1. Get all employees
@@ -923,6 +1168,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const targetNameText = texts.find(
       (text) => text.text.toLowerCase() === "name"
+    );
+
+    const employeeNumberText = texts.find(
+      (text) => text.text.toLowerCase() === "employee number"
     );
 
     // Store all asynchronous operations in an array
@@ -944,13 +1193,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (target) {
         // If employee already has a business card target, replace it
-        console.log("THIS EMPLOYEE ALREADY HAS TARGET:", employee);
+        targetNameText.text = `${employee.first_name} ${
+          employee.middle_name
+            ? employee.middle_name.charAt(0).toUpperCase() + "."
+            : ""
+        } ${employee.last_name}`
+          .replace(/\s+/g, " ")
+          .trim();
 
-        targetNameText.text = `${employee.honorifics ?? ""} ${
-          employee.first_name
-        } ${employee.middle_name ?? ""} ${employee.last_name}`;
-
-        draw();
+        employeeNumberText.text = employee.employee_number;
+        draw(true);
 
         const task = new Promise((resolve, reject) => {
           bcardCanvas.toBlob(async (blob) => {
@@ -977,17 +1229,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         console.log(
           "THE NAME:",
-          `${employee.honorifics ?? ""} ${employee.first_name} ${
-            employee.middle_name ?? ""
-          } ${employee.last_name}`
+          `${employee.first_name} ${employee.middle_name ?? ""} ${
+            employee.last_name
+          }`
         );
 
-        targetNameText.text = `${employee.honorifics ?? ""} ${
-          employee.first_name
-        } ${employee.middle_name ?? ""} ${employee.last_name}`;
+        targetNameText.text = `${employee.first_name} ${
+          employee.middle_name ?? ""
+        } ${employee.last_name}`;
+        employeeNumberText.text = employee.employee_number;
 
         // Update the canvas
-        draw();
+        draw(true);
 
         const task = new Promise((resolve, reject) => {
           bcardCanvas.toBlob(async (blob) => {
@@ -1015,11 +1268,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     await Promise.all(tasks);
 
     if (targetNameText) targetNameText.text = "Name";
+    if (employeeNumberText) employeeNumberText.text = "Employee Number";
 
+    if (replaceTargetErrors > 0)
+      showErrorMessage(
+        "Some business cards were still processing. Please generate all cards again later."
+      );
+
+    if (createTargetErrors > 0)
+      showErrorMessage(
+        "Some business cards failed to create. Please check the database for more details and try again."
+      );
     location.reload();
   }
 
-  draw();
+  draw(true);
 });
 
 // function draw() {
@@ -1052,3 +1315,420 @@ document.addEventListener("DOMContentLoaded", async () => {
 // STEPS FOR GENERATING/REPLACING BUSINESS CARDS
 // NOTE: THE CONTENT TYPE(name, email, etc...)  SHOULD ALREADY BE FIXED
 // CHANGE THE INPUT TO BUTTONS THAT YOU CAN TOGGLE TO HIDE OR SHOW THE PLACE HOLDER TEXTS
+
+// Initialize the tutorial when the business card section is active
+// Initialize the tutorial when the business card section is active
+// Initialize the tutorial when the business card section is active
+function initializeBCardTutorial() {
+  // Improved tutorial steps with better descriptions and step numbers
+  const tutorialSteps = [
+    {
+      element: ".bcard-bg-label",
+      title: "Step 1: Upload Background",
+      content:
+        "Start by uploading a background image for your business card template. This will serve as the base design for all business cards.",
+      position: "top",
+    },
+    {
+      element: "#theText",
+      title: "Step 2: Add Placeholder Text",
+      content:
+        'Type placeholder text like "Name" or "Email". These placeholders will be replaced with actual user information when cards are generated.',
+      position: "bottom",
+    },
+    {
+      element: ".draw-text-btn",
+      title: "Step 3: Add Text to Canvas",
+      content:
+        "Click this button to add your placeholder text to the business card canvas.",
+      position: "bottom",
+    },
+    {
+      element: "#canvas",
+      title: "Step 4: Position Text",
+      content:
+        'Click and drag text elements to position them on the card. For example, place "Name" where you want each person\'s name to appear.',
+      position: "left",
+      offsetX: -50,
+    },
+    {
+      element: ".text-options",
+      title: "Step 5: Style Text Elements",
+      content:
+        "Customize the appearance of each text element. Set the font, size, weight, and color to match your design.",
+      position: "left", // Changed from 'bottom' to 'left'
+      offsetX: -20, // Add offset to move it further left
+    },
+    {
+      element: "#generate-bcard-btn",
+      title: "Step 6: Save Template",
+      content:
+        "When your design is complete, click here to save it as the official template. This will replace any existing template in the system.",
+      position: "top",
+    },
+    // {
+    //   element: "#download-bcard",
+    //   title: "Step 7: Download Preview",
+    //   content:
+    //     "You can download a preview of the business card to see how it looks before finalizing.",
+    //   position: "top",
+    // },
+  ];
+
+  let currentStep = 0;
+  const overlay = document.getElementById("tutorialOverlay");
+  const spotlight = document.getElementById("tutorialSpotlight");
+  const tooltip = document.getElementById("tutorialTooltip");
+  const startBtn = document.getElementById("startTutorial");
+  const closeBtn = document.getElementById("closeTutorial");
+  const nextBtn = document.getElementById("nextStep");
+  const prevBtn = document.getElementById("prevStep");
+
+  // Only initialize if all elements exist
+  if (
+    !overlay ||
+    !spotlight ||
+    !tooltip ||
+    !startBtn ||
+    !closeBtn ||
+    !nextBtn ||
+    !prevBtn
+  ) {
+    console.error("Tutorial elements not found");
+    return;
+  }
+
+  // Improved placeholder typewriting effect function with cycling examples
+  function typewritePlaceholder(element, text, speed = 100) {
+    if (!element) {
+      console.error("Element not found for typewriting");
+      return;
+    }
+
+    // Clear the placeholder first
+    element.placeholder = "";
+    let i = 0;
+
+    // Cancel any existing interval
+    if (element._typingInterval) {
+      clearInterval(element._typingInterval);
+    }
+
+    // Use setInterval instead of recursive setTimeout for better control
+    element._typingInterval = setInterval(function () {
+      if (i < text.length) {
+        element.placeholder = text.substring(0, i + 1);
+        i++;
+      } else {
+        clearInterval(element._typingInterval);
+        element._typingInterval = null;
+      }
+    }, speed);
+  }
+
+  // Start tutorial
+  startBtn.addEventListener("click", function () {
+    currentStep = 0;
+    startTutorial();
+  });
+
+  // Close tutorial
+  closeBtn.addEventListener("click", function () {
+    endTutorial();
+  });
+
+  // Next step
+  nextBtn.addEventListener("click", function () {
+    if (currentStep < tutorialSteps.length - 1) {
+      currentStep++;
+      showStep(currentStep);
+    } else {
+      endTutorial();
+    }
+  });
+
+  // Previous step
+  prevBtn.addEventListener("click", function () {
+    if (currentStep > 0) {
+      currentStep--;
+      showStep(currentStep);
+    }
+  });
+
+  function startTutorial() {
+    overlay.style.display = "block";
+    showStep(currentStep);
+  }
+
+  function endTutorial() {
+    // Hide overlay and tooltips
+    overlay.style.display = "none";
+    tooltip.style.display = "none";
+    spotlight.style.display = "none";
+
+    // Reset all elements to their original state
+    resetAllElements();
+
+    // Reset the placeholder on the input field
+    const inputField = document.getElementById("theText");
+    if (inputField) {
+      inputField.placeholder = "Enter text here";
+      // Clear any running typewriting interval
+      if (inputField._typingInterval) {
+        clearInterval(inputField._typingInterval);
+        inputField._typingInterval = null;
+      }
+    }
+  }
+
+  function resetAllElements() {
+    // Find all elements that might have been modified
+    document.querySelectorAll("*").forEach((el) => {
+      // Reset z-index and position if they were set inline
+      if (el.style.zIndex === "10000") {
+        el.style.zIndex = "";
+      }
+      if (el.style.position === "relative") {
+        el.style.position = "";
+      }
+    });
+  }
+
+  function showStep(stepIndex) {
+    const step = tutorialSteps[stepIndex];
+    const element = document.querySelector(step.element);
+
+    if (!element) {
+      console.error(`Element ${step.element} not found`);
+      // Skip to next step if possible
+      if (currentStep < tutorialSteps.length - 1) {
+        currentStep++;
+        showStep(currentStep);
+      } else {
+        endTutorial();
+      }
+      return;
+    }
+
+    console.log(`Found element for step ${stepIndex}:`, element);
+
+    // Reset all elements to their original state first
+    resetAllElements();
+
+    // Update tooltip content
+    document.querySelector(".tutorial-tooltip-title").textContent = step.title;
+    document.querySelector(".tutorial-tooltip-content").textContent =
+      step.content;
+    document.querySelector(".tutorial-tooltip-progress").textContent = `Step ${
+      stepIndex + 1
+    } of ${tutorialSteps.length}`;
+
+    // Update buttons
+    if (stepIndex === 0) {
+      prevBtn.style.display = "none";
+    } else {
+      prevBtn.style.display = "block";
+    }
+
+    if (stepIndex === tutorialSteps.length - 1) {
+      nextBtn.textContent = "Finish";
+      nextBtn.className = "tutorial-btn tutorial-btn-finish";
+    } else {
+      nextBtn.textContent = "Next";
+      nextBtn.className = "tutorial-btn tutorial-btn-next";
+    }
+
+    // Position spotlight
+    const rect = element.getBoundingClientRect();
+    spotlight.style.display = "block";
+    spotlight.style.top = `${rect.top}px`;
+    spotlight.style.left = `${rect.left}px`;
+    spotlight.style.width = `${rect.width}px`;
+    spotlight.style.height = `${rect.height}px`;
+
+    // Position tooltip
+    tooltip.style.display = "block";
+
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let tooltipTop, tooltipLeft;
+
+    // Apply any custom offsets
+    const offsetX = step.offsetX || 0;
+    const offsetY = step.offsetY || 0;
+
+    // Special case for text options to prevent it from being cut off
+    if (step.element === ".text-options") {
+      // Position the tooltip to the left of the text options
+      tooltipTop = rect.top + 50; // Position it a bit down from the top
+      tooltipLeft = rect.left - tooltipRect.width - 20; // 20px gap
+
+      // If it would be cut off on the left, position it at the left edge with some padding
+      if (tooltipLeft < 10) {
+        tooltipLeft = 10;
+      }
+    } else {
+      // Normal positioning for other elements
+      switch (step.position) {
+        case "top":
+          tooltipTop = rect.top - tooltipRect.height - 10 + offsetY;
+          tooltipLeft =
+            rect.left + rect.width / 2 - tooltipRect.width / 2 + offsetX;
+          break;
+        case "bottom":
+          tooltipTop = rect.bottom + 10 + offsetY;
+          tooltipLeft =
+            rect.left + rect.width / 2 - tooltipRect.width / 2 + offsetX;
+          break;
+        case "left":
+          tooltipTop =
+            rect.top + rect.height / 2 - tooltipRect.height / 2 + offsetY;
+          tooltipLeft = rect.left - tooltipRect.width - 10 + offsetX;
+          break;
+        case "right":
+          tooltipTop =
+            rect.top + rect.height / 2 - tooltipRect.height / 2 + offsetY;
+          tooltipLeft = rect.right + 10 + offsetX;
+          break;
+        default:
+          tooltipTop = rect.bottom + 10 + offsetY;
+          tooltipLeft = rect.left + offsetX;
+      }
+    }
+
+    // Ensure tooltip stays within viewport
+    if (tooltipTop < 10) tooltipTop = 10;
+    if (tooltipLeft < 10) tooltipLeft = 10;
+    if (tooltipTop + tooltipRect.height > window.innerHeight - 10) {
+      tooltipTop = window.innerHeight - tooltipRect.height - 10;
+    }
+    if (tooltipLeft + tooltipRect.width > window.innerWidth - 10) {
+      tooltipLeft = window.innerWidth - tooltipRect.width - 10;
+    }
+
+    tooltip.style.top = `${tooltipTop}px`;
+    tooltip.style.left = `${tooltipLeft}px`;
+
+    // Highlight the current element
+    element.style.position = "relative";
+    element.style.zIndex = "10000";
+
+    // Add typewriting effect for the input field step with cycling examples
+    if (element.id === "theText" && stepIndex === 1) {
+      // Show different placeholder examples based on clicks
+      const placeholders = ["Name", "Email"];
+      const placeholderIndex = element._placeholderIndex || 0;
+
+      setTimeout(() => {
+        typewritePlaceholder(element, placeholders[placeholderIndex], 150);
+      }, 500);
+
+      // Update index for next time
+      element._placeholderIndex = (placeholderIndex + 1) % placeholders.length;
+    }
+  }
+
+  // Handle window resize to reposition elements
+  window.addEventListener("resize", function () {
+    if (overlay.style.display === "block") {
+      showStep(currentStep);
+    }
+  });
+}
+
+// Initialize the tutorial when the page loads or when the business card section is shown
+document.addEventListener("DOMContentLoaded", function () {
+  // Check if we're on the business card section
+  const bcardsSection = document.getElementById("bcards-section");
+  const bcardsLink = document.getElementById("bcards-link");
+
+  // Initialize tutorial when the business card section is shown
+  if (bcardsLink) {
+    bcardsLink.addEventListener("click", function () {
+      // Wait a bit for the section to be fully visible
+      setTimeout(initializeBCardTutorial, 500);
+    });
+  }
+
+  // If the business card section is already visible on page load
+  if (
+    bcardsSection &&
+    window.getComputedStyle(bcardsSection).display !== "none"
+  ) {
+    setTimeout(initializeBCardTutorial, 500);
+  }
+});
+
+// Add this code to your bcard-section.js file or create a new one
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Get tutorial elements
+  const tutorialButton = document.querySelector(".tutorial-start-btn");
+  const tutorialOverlay = document.getElementById("tutorialOverlay");
+  const tutorialSpotlight = document.getElementById("tutorialSpotlight");
+  const tutorialTooltip = document.getElementById("tutorialTooltip");
+
+  // Get navigation links
+  const bcardsLink = document.getElementById("bcards-link");
+  const otherLinks = document.querySelectorAll(
+    "#members-link, #archive-link, #logs-link, #university-link, #university-management-link, #markers-link, #admin-account-link"
+  );
+
+  // Get sections
+  const bcardsSection = document.getElementById("bcards-section");
+
+  // Function to hide tutorial elements
+  function hideTutorialElements() {
+    if (tutorialButton) tutorialButton.style.display = "none";
+    if (tutorialOverlay) tutorialOverlay.style.display = "none";
+    if (tutorialSpotlight) tutorialSpotlight.style.display = "none";
+    if (tutorialTooltip) tutorialTooltip.style.display = "none";
+  }
+
+  // Function to show tutorial button (only the button, not the overlay/tooltip)
+  function showTutorialButton() {
+    if (tutorialButton) tutorialButton.style.display = "flex";
+  }
+
+  // Initially hide tutorial elements if not on bcard section
+  if (!bcardsSection || bcardsSection.style.display === "none") {
+    hideTutorialElements();
+  }
+
+  // Show tutorial elements when bcard section is active
+  if (bcardsLink) {
+    bcardsLink.addEventListener("click", function () {
+      // Small delay to ensure section is visible first
+      setTimeout(showTutorialButton, 100);
+    });
+  }
+
+  // Hide tutorial elements when other sections are active
+  otherLinks.forEach((link) => {
+    if (link) {
+      link.addEventListener("click", function () {
+        hideTutorialElements();
+      });
+    }
+  });
+
+  // Additional check: Hide tutorial elements if bcard section is not visible
+  function checkBcardSectionVisibility() {
+    if (
+      bcardsSection &&
+      window.getComputedStyle(bcardsSection).display === "none"
+    ) {
+      hideTutorialElements();
+    } else if (
+      bcardsSection &&
+      window.getComputedStyle(bcardsSection).display !== "none"
+    ) {
+      showTutorialButton();
+    }
+  }
+
+  // Run the check on page load
+  checkBcardSectionVisibility();
+
+  // Optional: Run the check periodically to ensure correct state
+  setInterval(checkBcardSectionVisibility, 1000);
+});

@@ -39,6 +39,9 @@ router.route("/change-avatar").patch(
   adminController.changeAdminImage
 );
 
+router.get("/list-all", adminController.fetchAllAdmin);
+router.delete("/:id", adminController.deleteAdmin);
+
 router
   .route("/thisPassword")
   //ensureAuthenticated.ensureAdmin,
@@ -47,5 +50,9 @@ router.post("/forgot-password", adminController.forgotPassword);
 router.post("/reset-password/:id", adminController.resetPassword);
 
 router.post("/create-employee", adminController.createEmployee);
+
+router.post("/create-admin", adminController.createAdmin);
+
+router.get("/uses-temp", adminController.adminUsesTemp);
 
 module.exports = router;
